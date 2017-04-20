@@ -1,0 +1,93 @@
+##
+## W55FA93 series SPU/I2S API
+##
+
+config SOUND_W55FA93_PLAY_DEVICE
+	tristate "W55FA93 Audio Play Device"
+
+choice
+    prompt "Play device select"
+        default SND_SOC_W55FA93_SPU
+	depends on SOUND_W55FA93_PLAY_DEVICE
+
+config SND_SOC_W55FA93_SPU
+        bool "W55FA93 SPU Support for Playing"
+
+config SND_SOC_W55FA93_I2S
+        bool "NAU8822 I2S Audio Codec Support for Playing and Recording"
+endchoice
+
+config SND_SOC_W55FA93_I2S_ONLY
+	tristate "W55FA93 Audio I2S Playing without Codec"
+	depends on SND_SOC_W55FA93_I2S
+
+choice
+    prompt "SPU output select"
+        default SPU_WITHOUT_I2S_OUTPUT
+	depends on SND_SOC_W55FA93_SPU && !W55FA93_TV_FROM_APLL
+
+config SPU_WITH_I2S_OUTPUT
+        bool "W55FA93 SPU with I2S signal output"
+
+config SPU_WITHOUT_I2S_OUTPUT
+		bool "W55FA93 SPU without I2S signal output"
+endchoice
+
+choice
+    prompt "Speaker output select"
+        default NO_CONTROL_FOR_SPEAKER_ENABLED
+	depends on SND_SOC_W55FA93_SPU
+
+config GPA7_FOR_SPEAKER_ENABLED
+        bool "GPA7 used for speaker control"
+
+config NO_CONTROL_FOR_SPEAKER_ENABLED
+		bool "No pin used for speaker control"
+endchoice
+
+config HEADSET_SPEAKER_CONTROL_PIN_SELECT
+	tristate "Headset Detect and Speaker Control"
+
+choice
+    prompt "Headset detect Enable or Disabled ?"
+        default HEADSET_DISABLED
+	depends on HEADSET_SPEAKER_CONTROL_PIN_SELECT
+      
+config HEADSET_DISABLED
+	bool "Headset detect Disabled"
+
+config HEADSET_ENABLED
+	bool "Headset detect Enabled"
+endchoice	
+
+choice
+    prompt "Pins select"
+        default HEADSET_GPB2_AND_SPEAKER_GPB3
+	depends on HEADSET_ENABLED
+      
+config HEADSET_GPB2_AND_SPEAKER_GPB3
+	bool "GPB2 for headset detect and GPB3 for speaker control"
+
+config HEADSET_GPD14_AND_SPEAKER_GPA2
+	bool "GPD14 for headset detect and GPA2 for speaker control"
+
+config HEADSET_GPE0_AND_SPEAKER_GPE1
+	bool "GPE0 for headset detect and GPE1 for speaker control"
+
+config HEADSET_GPD3_AND_SPEAKER_GPD4
+	bool "GPD3 for headset detect and GPD4 for speaker control"
+
+endchoice
+
+choice
+    prompt "State select for GPD3"
+        default HEADSET_GPD3_LOW
+	depends on HEADSET_GPD3_AND_SPEAKER_GPD4
+      
+config HEADSET_GPD3_HIGH
+	bool "HEADSET plug-in -> GPD3=High"
+
+config HEADSET_GPD3_LOW
+	bool "HEADSET plug-in -> GPD3=Low"
+
+endchoice

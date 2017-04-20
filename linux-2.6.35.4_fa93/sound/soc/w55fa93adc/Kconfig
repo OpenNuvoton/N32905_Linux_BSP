@@ -1,0 +1,17 @@
+##
+## W55FA9X series ADC audio recording
+##
+
+config SND_SOC_W55FA93
+	tristate "SoC Audio for W55FA93 series"
+	depends on ARCH_W55FA93
+	help
+	  This option enables support for ADC recording mode on the W55FA93 SoC.
+
+config SND_SOC_W55FA93_ADC
+	tristate "W55FA93 ADC recording for demo board"
+	depends on SND_SOC_W55FA93
+	select SND_SOC_W55FA93_CODEC_ADC     
+	help
+	  Select this option to enable audio recording from ADC on the
+	  W55FA93 demoboard.

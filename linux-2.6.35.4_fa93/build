@@ -1,0 +1,81 @@
+#!/bin/sh
+
+ROOTFS=`grep CONFIG_INITRAMFS_SOURCE .config | awk 'BEGIN{FS="\""} {print $2}'`
+if [ "$ROOTFS" = "" ]; then
+	ROOTFS="../rootfs-2.6.35"
+fi
+
+if [ "$#" = 1 ]; then
+	if [ "$1" = "nand" ]; then	# for NAND SCSI boot
+		# for NAND boot + NAND/SD solution
+		cp $ROOTFS/etc/profile_nand $ROOTFS/etc/profile
+		cp $ROOTFS/etc/mdev_nand.conf $ROOTFS/etc/mdev.conf
+	elif [ "$1" = "sd" ]; then	# for SD boot + NAND/SD solution
+		cp $ROOTFS/etc/profile_sd $ROOTFS/etc/profile
+		cp $ROOTFS/etc/mdev_sd.conf $ROOTFS/etc/mdev.conf
+	elif [ "$1" = "spi" ]; then	# for SPI boot
+		if [ `grep -v "^#" .config | grep "CONFIG_INITRAMFS_ROOT_UID"` ]; then
+			# for SPI boot + NAND + SD solution
+			cp $ROOTFS/etc/profile_spi $ROOTFS/etc/profile
+		else
+			# for SPI boot + NAND + SD solution but uses ROMFS
+			cp $ROOTFS/etc/profile_spi_romfs $ROOTFS/etc/profile
+		fi
+		cp $ROOTFS/etc/mdev_spi.conf $ROOTFS/etc/mdev.conf
+	elif [ "$1" = "yaffs2" ]; then
+		cp $ROOTFS/etc/profile_yaffs2 $ROOTFS/etc/profile
+		cp $ROOTFS/etc/mdev_mtd.conf $ROOTFS/etc/mdev.conf
+	elif [ "$1" = "ubifs" ]; then
+		cp $ROOTFS/etc/profile_ubifs $ROOTFS/etc/profile
+		cp $ROOTFS/etc/mdev_mtd.conf $ROOTFS/etc/mdev.conf
+	else
+		echo "does not support \"$1\" target, please type \"nand\", \"sd\", \"spi\", \"yaffs2\" or \"ubifs\""
+		exit 1
+	fi
+fi
+
+make
+
+if [ `grep -v "^#" .config | grep "CONFIG_NUVOTON_W55FA93_SM=m"` ]; then
+	echo "Configure with NAND"
+	cp -a drivers/scsi/nuvoton_nand/nanddrv.ko $ROOTFS/usr
+else
+	echo "Configure without NAND"
+	if [ -f $ROOTFS/usr/nanddrv.ko ]; then
+		rm -f $ROOTFS/usr/nanddrv.ko
+	fi
+fi
+
+if [ `grep -v "^#" .config | grep "CONFIG_USB_FILE_STORAGE=m"` ]; then
+	echo "Configure with USBD mass storage"
+	cp -a drivers/usb/gadget/g_file_storage.ko $ROOTFS/usr
+else
+	echo "Configure without USBD mass storage"
+	if [ -f $ROOTFS/usr/g_file_storage.ko ]; then
+		rm -f $ROOTFS/usr/g_file_storage.ko
+	fi
+fi
+
+if [ `grep -v "^#" .config | grep "CONFIG_INITRAMFS_ROOT_UID"` ]; then
+	echo "Configure with INITRAMFS"
+	make
+else
+	echo "Configure with ROMFS"
+	genromfs -f ../image/rootfs.bin -d $ROOTFS
+	gzip -f -9 ../image/rootfs.bin
+fi
+
+# generate the conprog.gz
+if [ "$1" = "spi" ]; then	# for SPI boot
+	echo "Make zip image for SPI booting"
+	if [ `grep -v "^#" .config | grep "CONFIG_LD_ADDR_0"` ]; then
+		MKADDR=0x0
+	elif [ `grep -v "^#" .config | grep "CONFIG_LD_ADDR_8000"` ]; then
+		MKADDR=0x8000
+	fi
+	cp ../image/conprog.bin ../image/kernel.bin
+	gzip -f -9 ../image/kernel.bin
+	../image/mkimage -n 'Nuvoton-Linux' -A arm -O linux -T standalone -C gzip -a $MKADDR -e $MKADDR -d ../image/kernel.bin.gz ../image/conprog.gz
+	rm -f ../image/kernel.bin.gz
+fi
+

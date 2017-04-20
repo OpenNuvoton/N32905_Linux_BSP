@@ -1,0 +1,50 @@
+if ARCH_W55FA93
+
+config CPU_W55FA93
+	bool
+	default y
+
+menu "W55FA93 Machines"
+
+config ARCH_W55FA93DEV
+	bool "W55FA93 DEV-Nuvoton Evaluation Kit"
+	select CPU_W55FA93
+	help
+	   Say Y here if you are using the Nuvoton Evaluation Kit W55FA93 Demo Board
+           <http://www.nuvoton.com>       
+
+choice
+	prompt "External Crystal"
+	default EXTCLK_12M
+
+config EXTCLK_12M
+	bool "12MHz"
+
+config EXTCLK_27M
+	bool "27MHz"
+
+endchoice
+
+
+config SET_CPU_CLOCK_BY_BOOT_CODE
+       bool "CPU clock set by boot code"
+       default n
+       help
+       Say Y here only if target system clock is configured by boot code
+
+choice
+        prompt "Kernel Load Address"
+        default LD_ADDR_0
+	help
+           Default kernel load address for SD boot and NAND boot is 0x00000000. 
+           Set to 0x00008000 only if you know what you are doing
+
+config LD_ADDR_0
+        bool "0x00000000"
+
+config LD_ADDR_8000
+        bool "0x00008000"
+endchoice
+
+endmenu
+endif

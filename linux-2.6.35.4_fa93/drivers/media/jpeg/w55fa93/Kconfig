@@ -1,0 +1,13 @@
+config JPEG_CODEC
+	tristate "W55FA93 HW jpeg codec support"
+	depends on ARCH_W55FA93 && VIDEO_DEV
+	---help---
+	  Say Y here if you wnat to use W55FA93's hardware jpeg codec.
+
+config JPEG_CODEC_BUFFER_SIZE
+	hex "Max Raw data size - w*h*byteperpixel(hex) + Max Bistream Size"
+	default 0xC8000
+	depends on ARCH_W55FA93 && VIDEO_DEV && JPEG_CODEC
+	help
+	  Configure for jpeg encode data buffer size.
+	  default is 640*480*2 raw data buffer + 100K (Raw data buffer * 0.4) output buffer
