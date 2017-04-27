@@ -1,0 +1,36 @@
+export PATH=$PATH:/mnt/nand1-2/bin
+export LD_LIBRARY_PATH=./
+export QWS_MOUSE_PROTO="Tslib:/dev/input/event0"
+export TSLIB_CONFFILE=/usr/gui/tslib/ts.conf
+export TSLIB_PLUGINDIR=/usr/gui/tslib
+export TSLIB_TSDEVICE=/dev/input/event0
+export TSLIB_CALIBFILE=/mnt/nand1-1/pointercal
+
+insmod /usr/fa93_devmem.ko
+if [ -f /usr/nanddrv.ko ]; then
+	insmod /usr/gnand.ko
+	insmod /usr/nanddrv.ko
+fi
+
+# let SDIO driver detect SD card
+while true
+do
+	p=`grep mmcblk0p5 /proc/partitions`
+	usleep 10000
+	if [ -n "$p" ]; then
+		break
+	fi
+done
+
+mount -t vfat -o noatime,shortname=mixed,utf8 /dev/mmcblk0p1 /mnt/nand1-1
+mount -t vfat -o noatime,shortname=mixed,utf8 /dev/mmcblk0p5 /mnt/nand1-2
+/sbin/mdev -s
+if [ -f /mnt/nand1-1/lib_romfs.bin ]; then
+	mkdir /lib
+	mount -t romfs /mnt/nand1-1/lib_romfs.bin /lib
+fi
+
+/usr/ts_calibrate
+/bin/sync
+. /mnt/nand1-1/boot_script
+
