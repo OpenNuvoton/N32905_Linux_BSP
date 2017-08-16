@@ -242,7 +242,7 @@ case "$arg" in
 		output=${cpio_list}
 		echo "$output_file" | grep -q "\.gz$" && compr="gzip -9 -f"
 		echo "$output_file" | grep -q "\.bz2$" && compr="bzip2 -9 -f"
-		echo "$output_file" | grep -q "\.lzma$" && compr="lzma -9 -f"
+		echo "$output_file" | grep -q "\.lzma$" && compr="lzma -7 -f"
 		echo "$output_file" | grep -q "\.lzo$" && compr="lzop -9 -f"
 		echo "$output_file" | grep -q "\.cpio$" && compr="cat"
 		shift
