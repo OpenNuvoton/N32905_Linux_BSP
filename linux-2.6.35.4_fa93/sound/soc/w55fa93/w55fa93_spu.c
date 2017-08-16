@@ -285,13 +285,13 @@ struct snd_soc_dai w55fa93_spu_dai = {
         .probe			= w55fa93_spu_probe,
         .remove			= w55fa93_spu_remove,
         .playback = {
-                .rates		= SNDRV_PCM_RATE_8000_48000,
+				.rates		= SNDRV_PCM_RATE_8000_96000,				
                 .formats	= SNDRV_PCM_FMTBIT_S16_LE,
                 .channels_min	= 1,
                 .channels_max	= 2,
         },
         .capture = {
-                .rates		= SNDRV_PCM_RATE_8000_48000,
+				.rates		= SNDRV_PCM_RATE_8000_96000,								
                 .formats	= SNDRV_PCM_FMTBIT_S16_LE,
                 .channels_min	= 1,
                 .channels_max	= 2,
