@@ -34,7 +34,7 @@ if [ "$#" = 1 ]; then
 	fi
 fi
 
-make
+make -j8
 
 if [ `grep -v "^#" .config | grep "CONFIG_NUVOTON_W55FA93_SM=m"` ]; then
 	echo "Configure with NAND"
@@ -58,7 +58,7 @@ fi
 
 if [ `grep -v "^#" .config | grep "CONFIG_INITRAMFS_ROOT_UID"` ]; then
 	echo "Configure with INITRAMFS"
-	make
+	make -j8
 else
 	echo "Configure with ROMFS"
 	genromfs -f ../image/rootfs.bin -d $ROOTFS
