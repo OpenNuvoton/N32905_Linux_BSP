@@ -48,6 +48,21 @@ typedef enum {
 
 } OSD_Command;
 
+typedef enum {
+	OSD_RGB555=0xAB08, 
+  	OSD_RGB565,       
+  	OSD_RGBx888,       
+	OSD_RGB888x,  
+	OSD_ARGB888,  	
+  	OSD_Cb0Y0Cr0Y1=0xAB00,       
+  	OSD_Y0Cb0Y1Cr0,       
+  	OSD_Cr0Y0Cb0Y1,       
+  	OSD_Y0Cr0Y1Cb0,       
+  	OSD_Y1Cr0Y0Cb0,       
+  	OSD_Cr0Y1Cb0Y0,       
+  	OSD_Y1Cb0Y0Cr0,       
+  	OSD_Cb0Y1Cr0Y0,       
+} OSD_Format;
 typedef struct osd_cmd_s {
 	int cmd;
 	int x0;	
@@ -55,6 +70,7 @@ typedef struct osd_cmd_s {
 	int x0_size;
 	int y0_size;
 	int color;		// color_format, color_key
+	int format;		
 //	void __user *data;
 } osd_cmd_t;
 

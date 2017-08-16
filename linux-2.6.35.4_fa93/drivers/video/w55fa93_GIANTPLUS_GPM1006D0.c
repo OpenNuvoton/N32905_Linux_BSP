@@ -233,7 +233,11 @@ void GIANTPLUS_GPM1006D0_Init(void)
 	   	outl((inl(REG_LCM_TVCtl)& 0xFFFFF0DA)|(0x00000410), REG_LCM_TVCtl);   // DAC disable	
 	   	
 		// enable LCD controller
+#ifdef CONFIG_RGBx888_FORMAT
+		outl((inl(REG_LCM_LCDCCtl)& 0xFFFEFFF0)|(0x10005), REG_LCM_LCDCCtl);
+#else
 		outl((inl(REG_LCM_LCDCCtl)& 0xFFFEFFF0)|(0x10003), REG_LCM_LCDCCtl);
+#endif
 		return 0;
 	}
 #endif	
@@ -335,14 +339,15 @@ void w55fa93fb_init_pwm_device(void)
 	w55fa93fb_set_pwm_channel(PWM0);
 }
 
+
 static int w55fa93fb_probe_device(void)
 {
-#ifndef CONFIG_W55FA93_TV_LCD_SWITCH	
-	outl((inl(REG_LCM_LCDCInt) & 0xFFFFFF00) | 0x20000, REG_LCM_LCDCInt); // enable VINTEN
-#endif	
-	
 	/* enable lcd*/
+#ifdef CONFIG_RGBx888_FORMAT
+	outl((inl(REG_LCM_LCDCCtl)& 0xFFFEFFF0)|(0x10005), REG_LCM_LCDCCtl);
+#else
 	outl((inl(REG_LCM_LCDCCtl)& 0xFFFEFFF0)|(0x10003), REG_LCM_LCDCCtl);
+#endif
 	return 0;   
 }
 

@@ -97,6 +97,11 @@ osd_cmd_t* osd_ptr, osd_block, osd_buffer;
 volatile static long g_osd_buf_addr;
 volatile static long g_osd_x0;
 volatile static long g_osd_fristWrite = 1;
+#ifdef CONFIG_RGBx888_FORMAT
+#define PIXEL_BSIZE		4
+#else
+#define PIXEL_BSIZE		2
+#endif
 
 #ifdef CONFIG_TWO_OSD_BUF
 static u32 _osd_mem_v = 0;
@@ -529,7 +534,11 @@ void fb_edma_irq_handler(unsigned int arg)
 			// enable OSD function
 	//		outl((inl(REG_LCM_OSD_CTL) & ~OSD_CTL_OSD_FSEL)|(0x09 << 24) , REG_LCM_OSD_CTL);	// RGB565 format is the default
 			change_format(VA_2_OSD);
+#ifdef CONFIG_RGBx888_FORMAT
+			outl((inl(REG_LCM_LCDCCtl) & ~LCDCCtl_FBDS) | (0x02<<1) , REG_LCM_LCDCCtl);			// set VA format to RGBx888			
+#else			
 			outl((inl(REG_LCM_LCDCCtl) & ~LCDCCtl_FBDS) | (0x01<<1) , REG_LCM_LCDCCtl);			// set VA format to RGB565			
+#endif			
 	
 			outl( inl(REG_LCM_LINE_STRIPE) & LINE_STRIPE_F1_LSL , REG_LCM_LINE_STRIPE);			// reset OSD line stripe
 
@@ -661,11 +670,22 @@ void fb_edma_irq_handler(unsigned int arg)
 static int w55fa93_osd_function(osd_cmd_t* osd_ptr)
 {
 	int ii,jj;
+#ifdef CONFIG_RGBx888_FORMAT	
+	int* ptr;
+#else
 	short* ptr;
+#endif
 	volatile int osd_addr;	
 
 	ENTER();
 	
+	int osd_format;
+	
+	osd_format = osd_ptr->format;
+	if ( (osd_format&0xFF00) != 0xAB00)		// for backward compatible old frame buffer driver
+		osd_format = OSD_RGB565 & 0x00FF;
+	else 
+		osd_format &= 0x00FF;			
 	switch(osd_ptr->cmd)
 	{
 		case OSD_Close:
@@ -674,7 +694,7 @@ static int w55fa93_osd_function(osd_cmd_t* osd_ptr)
 			break;
 			
 		case OSD_Open:
-			outl((inl(REG_LCM_OSD_CTL) & ~OSD_CTL_OSD_FSEL)|(0x09 << 24) , REG_LCM_OSD_CTL);	// RGB565 format is the default
+			outl((inl(REG_LCM_OSD_CTL) & ~OSD_CTL_OSD_FSEL)|(osd_format << 24) , REG_LCM_OSD_CTL);	// RGB565 format is the default
 			outl( inl(REG_LCM_LINE_STRIPE) & LINE_STRIPE_F1_LSL , REG_LCM_LINE_STRIPE);			// reset OSD line stripe
 			
 			// set OSD size, position
@@ -695,9 +715,15 @@ static int w55fa93_osd_function(osd_cmd_t* osd_ptr)
 		
 		case OSD_Clear:
 			// fill assigned block size by color-key color
+	#ifdef CONFIG_RGBx888_FORMAT
+			ptr = (int*)osd_cpu_mmap;
+			for (ii=0; ii<osd_size/4; ii++)	// osd_size is the allocated OSD buffer for display
+				*(ptr++) = inl(REG_LCM_OSD_CTL) & 0x00FFFFFF;	//xRGB888
+	#else
 			ptr = (short*)osd_cpu_mmap;
 			for (ii=0; ii<osd_size/2; ii++)	// osd_size is the allocated OSD buffer for display
 				*(ptr++) = inl(REG_LCM_OSD_CTL) & 0xFFFF;	//RGB565
+	#endif				
 				
 			break;
 		
@@ -709,18 +735,31 @@ static int w55fa93_osd_function(osd_cmd_t* osd_ptr)
 			if ( (osd_ptr->y0 + osd_ptr->y0_size) > osd_vsize)	// OSD y-axis > limit
 				return -2;
 	
-			osd_addr = osd_cpu_mmap;
-			osd_addr += osd_ptr->y0 * LCDWIDTH * 2;			
-			osd_addr += osd_ptr->x0*2;
+	#ifdef CONFIG_RGBx888_FORMAT
+			ptr = (int*)osd_cpu_mmap;			
+			ptr += osd_ptr->y0 * LCDWIDTH + osd_ptr->x0;
+			for(ii=0; ii<osd_ptr->y0_size; ii++)
+			{
+				for (jj=0; jj<osd_ptr->x0_size; jj++)
+				{
+					*(ptr+jj) = osd_ptr->color;
+				}				
+				ptr += LCDWIDTH;			
+			}
+	#else			
+			osd_addr = osd_cpu_mmap;	
+			osd_addr += (osd_ptr->y0 * LCDWIDTH + osd_ptr->x0)* 2;			
 			ptr = (short*)osd_addr;			
 			for(ii=0; ii<osd_ptr->y0_size; ii++)
 			{
 				for (jj=0; jj<osd_ptr->x0_size; jj++)
 				{
-					*(ptr+jj) = osd_ptr->color & 0xFFFF;	//RGB565					
+					*(ptr+jj) = osd_ptr->color & 0xFFFF;		//RGB565					
+//					*(ptr+jj) = osd_ptr->color;
 				}				
 				ptr += LCDWIDTH;			
 			}
+	#endif			
 			break;
 
 		case OSD_FillBlock:
@@ -735,7 +774,7 @@ static int w55fa93_osd_function(osd_cmd_t* osd_ptr)
 			break;
 
   		case OSD_SetTrans:
-			outl((inl(REG_LCM_OSD_CTL) & ~OSD_CTL_OSD_TC)|(osd_ptr->color & 0xFFFF), REG_LCM_OSD_CTL);   // OSD transparent color
+			outl((inl(REG_LCM_OSD_CTL) & ~OSD_CTL_OSD_TC) |  (osd_ptr->color & 0xFFFFFF), REG_LCM_OSD_CTL);   // OSD transparent color
 			outl(inl(REG_LCM_OSD_CTL) |  (0x01 << 28), REG_LCM_OSD_CTL);   // enable OSD color-key
   			break;
 
@@ -791,6 +830,18 @@ static int w55fa93fb_check_var(struct fb_var_screeninfo *var,
 	else if (var->bits_per_pixel < fbi->mach_info->bpp.min)
 		var->bits_per_pixel = fbi->mach_info->bpp.min;
 
+#ifdef CONFIG_RGBx888_FORMAT
+	/* set r/g/b positions */
+	if (var->bits_per_pixel == 32) {
+		var->red.offset			= 16;
+		var->green.offset		= 8;
+		var->blue.offset		= 0;
+		var->red.length			= 8;
+		var->green.length		= 8;
+		var->blue.length		= 8;
+		var->transp.length	= 0;
+	} 
+#else
 	/* set r/g/b positions */
 	if (var->bits_per_pixel == 16) {
 		var->red.offset			= 11;
@@ -800,7 +851,10 @@ static int w55fa93fb_check_var(struct fb_var_screeninfo *var,
 		var->green.length		= 6;
 		var->blue.length		= 5;
 		var->transp.length	= 0;
-	} else {
+	} 
+#endif	
+	else 
+	{
 		var->red.length			= var->bits_per_pixel;
 		var->red.offset			= 0;
 		var->green.length		= var->bits_per_pixel;
@@ -823,7 +877,11 @@ static int w55fa93fb_set_par(struct fb_info *info)
 	struct fb_var_screeninfo *var = &info->var;
 	
 	printk("w55fa93fb_set_par !!! ================= \n");		
+#ifdef CONFIG_RGBx888_FORMAT
+	if (var->bits_per_pixel == 32)
+#else	
 	if (var->bits_per_pixel == 16)
+#endif	
 		fbi->fb->fix.visual = FB_VISUAL_TRUECOLOR;
 	else
 		fbi->fb->fix.visual = FB_VISUAL_PSEUDOCOLOR;
@@ -959,8 +1017,8 @@ static ssize_t w55fa93_write(struct fb_info *info, const char __user *buffer,
 		g_osd_x0 = osd_block.x0;
 
 		osd_buf_addr = osd_cpu_mmap;
-		osd_buf_addr += osd_block.y0 * LCDWIDTH * 2;			
-		osd_buf_addr += osd_block.x0*2;
+		osd_buf_addr += osd_block.y0 * LCDWIDTH * PIXEL_BSIZE;			
+		osd_buf_addr += osd_block.x0 * PIXEL_BSIZE;
 		g_osd_buf_addr = osd_buf_addr;
 	}
 	else
@@ -978,24 +1036,24 @@ static ssize_t w55fa93_write(struct fb_info *info, const char __user *buffer,
 
 	if (g_osd_fristWrite)
 	{
-		while(count/(osd_block.x0_size *2))
+		while(count/(osd_block.x0_size * PIXEL_BSIZE))
 		{
-			copy_from_user((unsigned int *)osd_buf_addr, (void *)buffer, osd_block.x0_size *2);					    
-			buffer += osd_block.x0_size *2;
-			osd_buf_addr += LCDWIDTH *2;			
+			copy_from_user((unsigned int *)osd_buf_addr, (void *)buffer, osd_block.x0_size * PIXEL_BSIZE);
+			buffer += osd_block.x0_size * PIXEL_BSIZE;
+			osd_buf_addr += LCDWIDTH * PIXEL_BSIZE;			
 			osd_block.y0_size --;
 			osd_block.y0 ++;
 
-			if (count >= (osd_block.x0_size *2))
-				count -= osd_block.x0_size *2;
+			if (count >= (osd_block.x0_size * PIXEL_BSIZE))
+				count -= osd_block.x0_size * PIXEL_BSIZE;
 		}	
 	
-		while(count%(osd_block.x0_size *2))
+		while(count%(osd_block.x0_size * PIXEL_BSIZE))
 		{
-			copy_from_user((unsigned int *)osd_buf_addr, (void *)buffer, count%(osd_block.x0_size *2));					    
-			osd_buf_addr += count%(osd_block.x0_size *2);			
-			g_osd_x0 = osd_block.x0 + (count%(osd_block.x0_size *2)) / 2;
-			count -= count%(osd_block.x0_size *2);
+			copy_from_user((unsigned int *)osd_buf_addr, (void *)buffer, count%(osd_block.x0_size * PIXEL_BSIZE));
+			osd_buf_addr += count%(osd_block.x0_size * PIXEL_BSIZE);			
+			g_osd_x0 = osd_block.x0 + (count%(osd_block.x0_size * PIXEL_BSIZE)) / PIXEL_BSIZE;
+			count -= count%(osd_block.x0_size * PIXEL_BSIZE);
 			break;
 		}	
 
@@ -1003,7 +1061,7 @@ static ssize_t w55fa93_write(struct fb_info *info, const char __user *buffer,
 	else
 	{
 		x_offset = osd_block.x0_size - (g_osd_x0 - osd_block.x0);
-		x_offset *= 2;
+		x_offset *= PIXEL_BSIZE;
 
 		if (count >= x_offset)
 		{
@@ -1012,32 +1070,32 @@ static ssize_t w55fa93_write(struct fb_info *info, const char __user *buffer,
 			count -= x_offset;
 			buffer += x_offset;			
 			
-			osd_buf_addr -= (g_osd_x0 - osd_block.x0)*2;
+			osd_buf_addr -= (g_osd_x0 - osd_block.x0) * PIXEL_BSIZE;
 			g_osd_x0 = osd_block.x0;						
 			
 			osd_block.y0_size --;			
 			osd_block.y0 ++ ;
 
-			osd_buf_addr += LCDWIDTH *2;							
+			osd_buf_addr += LCDWIDTH * PIXEL_BSIZE;							
 			
-			while(count/(osd_block.x0_size *2))
+			while(count/(osd_block.x0_size * PIXEL_BSIZE))
 			{
-				copy_from_user((unsigned int *)osd_buf_addr, (void *)buffer, osd_block.x0_size *2);					    
-				buffer += osd_block.x0_size *2;
-				osd_buf_addr += LCDWIDTH *2;			
+				copy_from_user((unsigned int *)osd_buf_addr, (void *)buffer, osd_block.x0_size * PIXEL_BSIZE);
+				buffer += osd_block.x0_size * PIXEL_BSIZE;
+				osd_buf_addr += LCDWIDTH * PIXEL_BSIZE;			
 				osd_block.y0_size --;
 				osd_block.y0 ++ ;				
 				
-				if (count >= (osd_block.x0_size *2))
-					count -= osd_block.x0_size *2;
+				if (count >= (osd_block.x0_size * PIXEL_BSIZE))
+					count -= osd_block.x0_size * PIXEL_BSIZE;
 			}	
 		
-			while(count%(osd_block.x0_size *2))
+			while(count%(osd_block.x0_size * PIXEL_BSIZE))
 			{
-				copy_from_user((unsigned int *)osd_buf_addr, (void *)buffer, count%(osd_block.x0_size *2));					    
-				osd_buf_addr += count%(osd_block.x0_size *2);			
-				g_osd_x0 = osd_block.x0 + (count%(osd_block.x0_size *2)) / 2;
-				count -= count%(osd_block.x0_size *2);				
+				copy_from_user((unsigned int *)osd_buf_addr, (void *)buffer, count%(osd_block.x0_size * PIXEL_BSIZE));					    
+				osd_buf_addr += count%(osd_block.x0_size * PIXEL_BSIZE);			
+				g_osd_x0 = osd_block.x0 + (count%(osd_block.x0_size * PIXEL_BSIZE)) / PIXEL_BSIZE;
+				count -= count%(osd_block.x0_size * PIXEL_BSIZE);				
 				break;
 			}	
 		}			
@@ -1045,7 +1103,7 @@ static ssize_t w55fa93_write(struct fb_info *info, const char __user *buffer,
 		{
 			copy_from_user((unsigned int *)osd_buf_addr, (void *)buffer, count);					    			
 			osd_buf_addr += count;
-			g_osd_x0 += count/2;
+			g_osd_x0 += count/PIXEL_BSIZE;
 		}			
 	}				
 
@@ -1073,9 +1131,15 @@ static int w55fa93fb_close(struct fb_info *info, int init)
 	i32OpenCount --;
 	if (i32OpenCount == 1)		// console will call "fb_open()" one time
 	{
-		//printk("w55fa93fb_close\n");
+#ifdef CONFIG_RGBx888_FORMAT
+		//printk("w55fa95fb_close\n");
+		outl((inl(REG_LCM_LCDCCtl) & ~LCDCCtl_FBDS) | ((DISPLAY_MODE_RGBx888&0x07)<<1) , REG_LCM_LCDCCtl); // change frame buffer source format	
+		currentMode = VA_RGB888x;		
+#else	
+		//printk("w55fa95fb_close\n");
 		outl((inl(REG_LCM_LCDCCtl) & ~LCDCCtl_FBDS) | ((DISPLAY_MODE_RGB565&0x07)<<1) , REG_LCM_LCDCCtl); // change frame buffer source format	
 		currentMode = VA_RGB565;		
+#endif		
 	}
 	else if (i32OpenCount == 0)
 		return -1;		
@@ -1084,9 +1148,14 @@ static int w55fa93fb_close(struct fb_info *info, int init)
 	if (i32OpenCount == 1)
 	{
 		i32OpenCount = 0;
-		//printk("w55fa93fb_close\n");
+#ifdef CONFIG_RGBx888_FORMAT
+		//printk("w55fa95fb_close\n");
+		outl((inl(REG_LCM_LCDCCtl) & ~LCDCCtl_FBDS) | ((DISPLAY_MODE_RGBx888&0x07)<<1) , REG_LCM_LCDCCtl); // change frame buffer source format	
+#else	
+		//printk("w55fa95fb_close\n");
 		outl((inl(REG_LCM_LCDCCtl) & ~LCDCCtl_FBDS) | ((DISPLAY_MODE_RGB565&0x07)<<1) , REG_LCM_LCDCCtl); // change frame buffer source format	
 		currentMode = VA_RGB565;		
+#endif		
 	}
 	else if (i32OpenCount>1)
 		i32OpenCount --;
@@ -1570,7 +1639,11 @@ static int __init w55fa93fb_map_video_memory(struct w55fa93fb_info *fbi)
 		{
 			
 			outl(CONFIG_FRAME_BUFFER_ADDR, REG_LCM_FSADDR);					
+#ifdef CONFIG_RGBx888_FORMAT
+			outl((inl(REG_LCM_LCDCCtl)& 0xFFFEFFF0)|(0x10005), REG_LCM_LCDCCtl);	// change source flormat to RGB565	
+#else	
 			outl((inl(REG_LCM_LCDCCtl)& 0xFFFEFFF0)|(0x10003), REG_LCM_LCDCCtl);	// change source flormat to RGB565	
+#endif		
 			printk("Vsync flag is encountered !!!\n");
 		//	while(1);
 			break;

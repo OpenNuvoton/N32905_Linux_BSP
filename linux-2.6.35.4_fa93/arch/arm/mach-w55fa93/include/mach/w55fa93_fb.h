@@ -145,7 +145,11 @@ struct w55fa93fb_info {
 #ifdef CONFIG_GIANTPLUS_GPM1006D0_320X240
 #define LCDWIDTH 320
 #define LCDHEIGHT 240
-#define LCDBPP 16
+	#ifdef CONFIG_RGBx888_FORMAT
+	#define LCDBPP 32
+	#else
+	#define LCDBPP 16
+	#endif
 #endif
 
 #ifdef	CONFIG_AMPIRE_800x480
@@ -193,13 +197,13 @@ struct w55fa93fb_info {
 #define LCDBPP 16
 #endif
 
-
-#define DISPLAY_MODE_RGB555	0
-#define DISPLAY_MODE_RGB565	1
-#define DISPLAY_MODE_CBYCRY	4
-#define DISPLAY_MODE_YCBYCR	5
-#define DISPLAY_MODE_CRYCBY	6
-#define DISPLAY_MODE_YCRYCB	7
+#define DISPLAY_MODE_RGB565		1
+#define DISPLAY_MODE_RGBx888	2
+#define DISPLAY_MODE_RGB888x	3
+#define DISPLAY_MODE_CBYCRY		4
+#define DISPLAY_MODE_YCBYCR		5
+#define DISPLAY_MODE_CRYCBY		6
+#define DISPLAY_MODE_YCRYCB		7
 
 
 #define VIDEO_ACTIVE_WINDOW_COORDINATES	_IOW('v', 22, unsigned int)	//set display-start line in display buffer
