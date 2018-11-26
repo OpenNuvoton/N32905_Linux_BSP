@@ -71,10 +71,10 @@ config GPIO_MAX730X
 comment "Memory mapped GPIO expanders:"
 
 config GPIO_W55FA93
-	tristate "W55FA93 GPIO support"
+	tristate "N9H2x/N329xx/W55FA93 GPIO support"
 	depends on GPIOLIB
 	help
-	  Say yes here to support GPIO functionality of w55fa93 chip
+	  Say yes here to support GPIO functionality of N9H2x/N329xx/W55FA93 chip
 
 config GPIO_IT8761E
 	tristate "IT8761E GPIO support"

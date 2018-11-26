@@ -70,6 +70,7 @@ static struct timer_list usbd_timer;
 u32 volatile g_USB_Mode_Check = 0;
 int volatile g_usbd_access = 0;
 int volatile usb_eject_flag = 0;
+u32 iso_frame_count = 0;
 static void timer_check_usbd_access(unsigned long dummy);
 
 static const char       gadget_name [] = "w55fa93-udc";
@@ -248,9 +249,12 @@ write_packet(struct w55fa93_ep *ep, struct w55fa93_request *req)
                 buf = (u8*)(req->req.dma + req->req.actual);
 
                 if (len == 0) {
+			if(ep->EP_Type != EP_TYPE_ISO)
+			{
                         //printk("write_packet send zero packet\n");
                         __raw_writel((__raw_readl(REG_USBD_EPA_RSP_SC+0x28*(ep->index-1))&0xF7)|EP_ZERO_IN,
                                      REG_USBD_EPA_RSP_SC+0x28*(ep->index-1));
+			}	
                 } else {
                         len = udc_transfer(ep, buf, len, DMA_WRITE);
                 }
@@ -267,9 +271,7 @@ write_packet(struct w55fa93_ep *ep, struct w55fa93_request *req)
 // return:  0 = still running, 1 = completed, negative = errno
 static int write_fifo(struct w55fa93_ep *ep, struct w55fa93_request *req)
 {
-        u32 len;
-	
-        len = write_packet(ep, req);
+        write_packet(ep, req);
 
         /* last packet is often short (sometimes a zlp) */
         if (req->req.length == req->req.actual/* && !req->req.zero*/) {
@@ -492,7 +494,8 @@ void paser_irq_cep(int irq, struct w55fa93_udc *dev, u32 IrqSt)
 
         case CEP_DATA_RXD:
 
-                if (dev->ep0state == EP0_OUT_DATA_PHASE) {
+                //if (dev->ep0state == EP0_OUT_DATA_PHASE) 
+		{
                         if (req)
                                 is_last = read_fifo(ep,req, 0);
 
@@ -528,11 +531,11 @@ void paser_irq_cep(int irq, struct w55fa93_udc *dev, u32 IrqSt)
 				usb_status = -1;
 			}
                         if (!is_last)
-                                __raw_writel(0x408, REG_USBD_CEP_IRQ_ENB);
+                                __raw_writel(0x008, REG_USBD_CEP_IRQ_ENB);
                         else {
                                 if (dev->setup_ret >= 0)
                                         __raw_writel(CEP_NAK_CLEAR, REG_USBD_CEP_CTRL_STAT);	// clear nak so that sts stage is complete
-                                __raw_writel(0x402, REG_USBD_CEP_IRQ_ENB);		// suppkt int//enb sts completion int
+                                __raw_writel(0x40A, REG_USBD_CEP_IRQ_ENB);		// suppkt int//enb sts completion int
 
                                 if (dev->setup_ret < 0)//== -EOPNOTSUPP)
                                         dev->ep0state=EP0_IDLE;
@@ -708,6 +711,53 @@ void paser_irq_nep(int irq, struct w55fa93_ep *ep, u32 IrqSt)
                 read_fifo(ep,req, __raw_readl(datacnt_reg));
 
                 break;
+        case EP_DATA_TXD:
+
+                if (req == NULL) {
+                        __raw_writel(0, REG_USBD_EPA_IRQ_ENB + 0x28*(ep->index-1));
+                        break;
+                }
+
+                if(__raw_readl(REG_USBD_HEAD_WORD0) != 0)
+		{
+			if((__raw_readl(REG_USBD_EPA_DATA_CNT+0x28*(ep->index-1)) & 0xFFFF) >= (__raw_readl(REG_USBD_EPA_MPS+0x28*(ep->index-1)) + 2))
+			{
+				 __raw_writel(0x08 | __raw_readl(REG_USBD_EPA_IRQ_ENB + (0x28* (ep->index-1))),  REG_USBD_EPA_IRQ_ENB + (0x28* (ep->index-1)));
+			}
+			else if((__raw_readl(REG_USBD_EPA_DATA_CNT+0x28*(ep->index-1)) & 0xFFFF) == 0)
+			{
+	 			__raw_writel(~0x08 & __raw_readl(REG_USBD_EPA_IRQ_ENB + (0x28* (ep->index-1))),  REG_USBD_EPA_IRQ_ENB + (0x28* (ep->index-1)));
+				iso_frame_count++;
+				done(ep, req, 0);
+			}
+			else
+			{
+				__raw_writel(__raw_readl(REG_USBD_HEAD_WORD0) | 0x200 , REG_USBD_HEAD_WORD0);
+				__raw_writel(2, REG_USBD_EPA_HEAD_CNT);
+			        __raw_writel((__raw_readl(REG_USBD_EPA_RSP_SC+0x28*(ep->index-1))&0xF7)|0x40,
+        	                                     REG_USBD_EPA_RSP_SC+0x28*(ep->index-1)); // packet end
+
+			}		
+		}
+		else
+		{
+			if((__raw_readl(REG_USBD_EPA_DATA_CNT+0x28*(ep->index-1)) & 0xFFFF) >= (__raw_readl(REG_USBD_EPA_MPS+0x28*(ep->index-1))))
+			{
+				 __raw_writel(0x08 | __raw_readl(REG_USBD_EPA_IRQ_ENB + (0x28* (ep->index-1))),  REG_USBD_EPA_IRQ_ENB + (0x28* (ep->index-1)));
+				
+			}
+			else
+			{
+			        __raw_writel((__raw_readl(REG_USBD_EPA_RSP_SC+0x28*(ep->index-1))&0xF7)|0x40,
+        	                                     REG_USBD_EPA_RSP_SC+0x28*(ep->index-1)); // packet end
+	 			__raw_writel(~0x08 & __raw_readl(REG_USBD_EPA_IRQ_ENB + (0x28* (ep->index-1))),  REG_USBD_EPA_IRQ_ENB + (0x28* (ep->index-1)));
+				done(ep, req, 0);
+
+			}	
+
+		}
+
+                break;
         default:
                 printk("irq: %d not handled !\n",irq);
                 __raw_writel(irq, REG_USBD_EPA_IRQ_STAT + 0x28*(ep->index-1));
@@ -779,8 +829,6 @@ void paser_irq_nepint(int irq, struct w55fa93_ep *ep, u32 IrqSt)
 				break;
 			}
 		}
-                fifo_count = __raw_readl(datacnt_reg);
-
 
                 if (dev->usb_dma_trigger) {
                         printk("RxED dma triggered\n");
@@ -969,9 +1017,10 @@ static int w55fa93_ep_enable (struct usb_ep *_ep, const struct usb_endpoint_desc
 {
         struct w55fa93_udc	*dev;
         struct w55fa93_ep	*ep;
-        u32			max, tmp;
+        u32			max;
         unsigned long		flags;
         u32			int_en_reg;
+		u32			hshb = 0;
         s32 sram_addr;
         ep = container_of (_ep, struct w55fa93_ep, ep);
         if (!_ep || !desc || ep->desc || _ep->name == ep0name
@@ -983,6 +1032,8 @@ static int w55fa93_ep_enable (struct usb_ep *_ep, const struct usb_endpoint_desc
                 return -ESHUTDOWN;
 
         max = le16_to_cpu (desc->wMaxPacketSize) & 0x1fff;
+		hshb = (max & 0x1800) >> 11;
+		max &= 0x7FF; 
 
         spin_lock_irqsave (&dev->lock, flags);
         _ep->maxpacket = max & 0x7ff;
@@ -994,14 +1045,21 @@ static int w55fa93_ep_enable (struct usb_ep *_ep, const struct usb_endpoint_desc
         if (ep->index != 0) {
                 __raw_writel(max, REG_USBD_EPA_MPS + 0x28*(ep->index-1));
                 ep->ep.maxpacket = max;
-
-                sram_addr = get_sram_base(dev, max);
+		if(((ep->desc->bmAttributes&USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_ISOC) && hshb)
+	                sram_addr = get_sram_base(dev, max*(hshb+1)+100);
+		else
+	                sram_addr = get_sram_base(dev, max);
 		usb_ep_status[ep->index-1]=0;
                 if (sram_addr < 0)
                         return sram_addr;
 
                 __raw_writel(sram_addr, REG_USBD_EPA_START_ADDR+0x28*(ep->index-1));
-                sram_addr = sram_addr + max;
+		if((ep->desc->bmAttributes&USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_ISOC)
+		{
+	                sram_addr = sram_addr + max *(hshb+1)+100;
+		}
+		else
+			sram_addr = sram_addr + max;
                 __raw_writel(sram_addr-1, REG_USBD_EPA_END_ADDR+0x28*(ep->index-1));
         }
 
@@ -1012,19 +1070,20 @@ static int w55fa93_ep_enable (struct usb_ep *_ep, const struct usb_endpoint_desc
                 ep->EP_Type = ep->desc->bmAttributes&USB_ENDPOINT_XFERTYPE_MASK;
                 if (ep->EP_Type == USB_ENDPOINT_XFER_ISOC) {
                         ep->EP_Type = EP_TYPE_ISO;
-                        ep->EP_Mode = EP_MODE_FLY;
+                        ep->EP_Mode = EP_MODE_AUTO;
                 } else if (ep->EP_Type == USB_ENDPOINT_XFER_BULK) {
                         ep->EP_Type = EP_TYPE_BLK;
                         ep->EP_Mode = EP_MODE_AUTO;
                 }
-                if (ep->EP_Type == USB_ENDPOINT_XFER_INT) {
+                else if (ep->EP_Type == USB_ENDPOINT_XFER_INT) {
                         ep->EP_Type = EP_TYPE_INT;
                         ep->EP_Mode = EP_MODE_MAN;
                 }
                 __raw_writel(0x9, REG_USBD_EPA_RSP_SC+0x28*(ep->index-1));//DATA0 and flush SRAM
 
-                __raw_writel(ep->EP_Num<<4|ep->EP_Dir<<3|ep->EP_Type<<1|1,
+                __raw_writel((hshb << 8)|ep->EP_Num<<4|ep->EP_Dir<<3|ep->EP_Type<<1|1,
                              REG_USBD_EPA_CFG+0x28*(ep->index-1));
+
                 __raw_writel(ep->EP_Mode, REG_USBD_EPA_RSP_SC+0x28*(ep->index-1));
 
 
@@ -1060,7 +1119,7 @@ static int w55fa93_ep_enable (struct usb_ep *_ep, const struct usb_endpoint_desc
 
 
         /* print some debug message */
-        tmp = desc->bEndpointAddress;
+       // tmp = desc->bEndpointAddress;
        // printk ("enable %s(%d) ep%02x%s-blk max %02x\n",
        //         _ep->name,ep->EP_Num, tmp, desc->bEndpointAddress & USB_DIR_IN ? "in" : "out", max);
 
@@ -1103,11 +1162,11 @@ static int w55fa93_ep_disable (struct usb_ep *_ep)
  */
 static struct usb_request *
 w55fa93_alloc_request (struct usb_ep *_ep, gfp_t mem_flags) {
-        struct w55fa93_ep	*ep;
+        //struct w55fa93_ep	*ep;
         struct w55fa93_request	*req;
 
         //printk("w55fa93_alloc_request(ep=%p,flags=%d) ", _ep, mem_flags);
-        ep = container_of (_ep, struct w55fa93_ep, ep);
+        //ep = container_of (_ep, struct w55fa93_ep, ep);
         if (!_ep)
                 return 0;
 
@@ -1190,6 +1249,7 @@ w55fa93_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
         /* iso is always one packet per request, that's the only way
          * we can report per-packet status.  that also helps with dma.
          */
+#if 0
         if (ep->desc) { //clyu
                 if (unlikely (ep->desc->bmAttributes == USB_ENDPOINT_XFER_ISOC
                                 && req->req.length > le16_to_cpu
@@ -1198,7 +1258,7 @@ w55fa93_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
                         return -EMSGSIZE;
                 }
         }
-
+#endif
         _req->status = -EINPROGRESS;
         _req->actual = 0;
 
@@ -1215,6 +1275,22 @@ w55fa93_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
                         __raw_writel(0x402, REG_USBD_CEP_IRQ_ENB);		// suppkt int//enb sts completion int
                         done(ep, req, 0);
                 }
+		else if(req->req.length!=0)
+		{
+			dev->ep0state = EP0_IN_DATA_PHASE;
+			if(__raw_readl(REG_USBD_CEP_CNT)!= 0)
+			{
+        			if (list_empty(&ep->queue)) {
+			                req = 0;
+			        } else {
+		        	        req = list_entry(ep->queue.next, struct w55fa93_request, queue);
+			        }
+				read_fifo(ep,req, 0);
+
+			}
+			else
+        	                __raw_writel(0x08, REG_USBD_CEP_IRQ_ENB);
+		}
         } else if (ep->index > 0) {
                 if (ep->EP_Dir) { //IN
                         if (!dev->usb_dma_trigger || (ep->index!=dev->usb_dma_owner)) {
@@ -1328,11 +1404,32 @@ static int w55fa93_set_selfpowered (struct usb_gadget *_gadget, int value)
 }
 
 
+static int w55fa93_pullup(struct usb_gadget *_gadget, int is_on)
+{
+	struct w55fa93_udc  *dev;
+	unsigned long   flags;
 
+	if (!_gadget)
+		return -ENODEV;
+
+	dev = container_of (_gadget, struct w55fa93_udc, gadget);
+
+	spin_lock_irqsave (&dev->lock, flags);
+
+	if (is_on)		
+	        __raw_writel(0x320, REG_USBD_PHY_CTL);
+	else
+		__raw_writel(0x220, REG_USBD_PHY_CTL);
+
+	spin_unlock_irqrestore (&dev->lock, flags);
+
+	return 0;
+}
 static const struct usb_gadget_ops w55fa93_ops = {
         .get_frame          = w55fa93_g_get_frame,
         .wakeup             = w55fa93_wakeup,
         .set_selfpowered    = w55fa93_set_selfpowered,
+		.pullup		= w55fa93_pullup,
 };
 
 
@@ -1444,6 +1541,9 @@ static void udc_isr_rst(struct w55fa93_udc	*dev)
         //reset DMA
         __raw_writel(0x80, REG_USBD_DMA_CTRL_STS);
         __raw_writel(0x00, REG_USBD_DMA_CTRL_STS);
+		__raw_writel(0 , REG_USBD_HEAD_WORD0);
+
+		__raw_writel(0, REG_USBD_EPA_HEAD_CNT);
 
         dev->usb_devstate = 1;		//default state
 
@@ -1475,7 +1575,6 @@ static void udc_isr_dma(struct w55fa93_udc *dev)
 {
         struct w55fa93_request	*req;
         struct w55fa93_ep	*ep;
-        u32 datacnt_reg;
 
         if (!dev->usb_dma_trigger) {
                 printk("DMA not trigger, intr?\n");
@@ -1484,7 +1583,6 @@ static void udc_isr_dma(struct w55fa93_udc *dev)
 
         ep = &dev->ep[dev->usb_dma_owner];
 
-        datacnt_reg = (u32)(REG_USBD_EPA_DATA_CNT+0x28*(ep->index-1));
 
         if (dev->usb_dma_dir == Ep_In) {
                 __raw_writel(0x40, REG_USBD_EPA_IRQ_STAT + 0x28*(ep->index-1));
@@ -1513,24 +1611,66 @@ static void udc_isr_dma(struct w55fa93_udc *dev)
                 } else if (ep->EP_Type == EP_TYPE_INT) {
                         __raw_writel(dev->usb_dma_cnt, REG_USBD_EPA_TRF_CNT+0x28*(ep->index-1));
                 }
-                req->req.actual += dev->usb_dma_cnt;
-                if ((req->req.length == req->req.actual) || dev->usb_dma_cnt < ep->ep.maxpacket) {
+		else if (ep->EP_Type == EP_TYPE_ISO) {
+
+				if(__raw_readl(REG_USBD_HEAD_WORD0) != 0)
+				{
+					__raw_writel(0x08,  REG_USBD_EPA_IRQ_STAT + (0x28* (ep->index-1)));
+					 __raw_writel(0x08 | __raw_readl(REG_USBD_EPA_IRQ_ENB + (0x28* (ep->index-1))),  REG_USBD_EPA_IRQ_ENB + (0x28* (ep->index-1)));
+
+					if((__raw_readl(REG_USBD_EPA_DATA_CNT+0x28*(ep->index-1)) & 0xFFFF) < (__raw_readl(REG_USBD_EPA_MPS+0x28*(ep->index-1))+2))
+					{
+						if(dev->usb_dma_trigger_next == 0)
+						{
+				        		__raw_writel(__raw_readl(REG_USBD_HEAD_WORD0) | 0x200 , REG_USBD_HEAD_WORD0);
+							__raw_writel(2, REG_USBD_EPA_HEAD_CNT);
+							__raw_writel((__raw_readl(REG_USBD_EPA_RSP_SC+0x28*(ep->index-1))&0xF7)|0x40,
+        	                        	             REG_USBD_EPA_RSP_SC+0x28*(ep->index-1)); // packet end
+						}                                	
+					}
+				}
+				else
+				{
+
+					if((__raw_readl(REG_USBD_EPA_DATA_CNT+0x28*(ep->index-1)) & 0xFFFF) >= (__raw_readl(REG_USBD_EPA_MPS+0x28*(ep->index-1))))
+					{
+						 __raw_writel(0x08,  REG_USBD_EPA_IRQ_STAT + (0x28* (ep->index-1)));
+						 __raw_writel(0x08 | __raw_readl(REG_USBD_EPA_IRQ_ENB + (0x28* (ep->index-1))),  REG_USBD_EPA_IRQ_ENB + (0x28* (ep->index-1)));
+					}
+					else
+					{
+						__raw_writel((__raw_readl(REG_USBD_EPA_RSP_SC+0x28*(ep->index-1))&0xF7)|0x40,
+        	                                     REG_USBD_EPA_RSP_SC+0x28*(ep->index-1)); // packet end
+                                	
+					}
+				}
+                } 
+		req->req.actual += __raw_readl(REG_USBD_DMA_CNT);
+
+        
+                if ((req->req.length == req->req.actual) || dev->usb_dma_cnt < ep->ep.maxpacket)
+		{
                         __raw_writel(dev->irq_enbl, REG_USBD_IRQ_ENB_L);
-                        if ((ep->EP_Type == EP_TYPE_BLK) &&
-                                        (ep->EP_Dir == 0) && //OUT
-                                        dev->usb_dma_cnt < ep->ep.maxpacket) {
-                                if (ep->buffer_disabled) {
+                        if ((ep->EP_Type == EP_TYPE_BLK) && (ep->EP_Dir == 0) && dev->usb_dma_cnt < ep->ep.maxpacket)
+			{
+                                if (ep->buffer_disabled)
+				{
                                         __raw_writel((__raw_readl(REG_USBD_EPA_RSP_SC + 0x28*(ep->index-1)))&0x77,
                                                      REG_USBD_EPA_RSP_SC + 0x28*(ep->index-1));//enable buffer
                                         __raw_writel((__raw_readl(REG_USBD_EPA_RSP_SC+0x28*(ep->index-1))&0xF7)|0x80,
                                                      REG_USBD_EPA_RSP_SC+0x28*(ep->index-1));//disable buffer when short packet
                                 }
                         }
-
-                        done(ep, req, 0);
-
+			if (ep->EP_Type == EP_TYPE_ISO) 
+			{
+			 	if(__raw_readl(REG_USBD_HEAD_WORD0) == 0)
+					done(ep, req, 0);
+			}
+			else
+				done(ep, req, 0);
                         return;
                 }
+		
         }
 
         if (dev->usb_dma_dir == Ep_Out) {
@@ -1640,7 +1780,7 @@ static void udc_isr_ctrl_pkt(struct w55fa93_udc *dev)
                         break;
 
                 case USBR_SET_INTERFACE:
-                        ReqErr = ((crq.bRequestType == 0x1) && ((crq.wValue & 0xff80) == 0)
+                       /* ReqErr = ((crq.bRequestType == 0x1) && ((crq.wValue & 0xff80) == 0)
                                   && ((crq.wIndex & 0xfff0) == 0) && (crq.wLength == 0)) ? 0 : 1;
 
                         if (!((dev->usb_devstate == 0x3) && (crq.wIndex == 0x0) && (crq.wValue == 0x0)))
@@ -1648,7 +1788,7 @@ static void udc_isr_ctrl_pkt(struct w55fa93_udc *dev)
 
                         if (ReqErr == 1) {
                                 break;	//break this switch loop
-                        }
+                        }*/
 
                         break;
 
@@ -1867,7 +2007,7 @@ static u32 udc_transfer(struct w55fa93_ep *ep, u8* buf, size_t size, u32 mode)
         loop = size / USBD_DMA_LEN;
 
         if (mode == DMA_WRITE) {
-                while (!(__raw_readl(REG_USBD_EPA_IRQ_STAT + (0x28* (ep->index-1))) & 0x02))
+                while (__raw_readl(REG_USBD_DMA_CTRL_STS)&0x20)//wait DMA complete
 		{
 			if (!(__raw_readl(REG_USBD_PHY_CTL) & BIT31))
 			{
@@ -1884,27 +2024,43 @@ static u32 udc_transfer(struct w55fa93_ep *ep, u8* buf, size_t size, u32 mode)
 
                 __raw_writel(0, REG_USBD_EPA_IRQ_ENB + (0x28* (ep->index-1)));
 
-                if (loop > 0) {
-                	loop--;
-                        if (loop > 0)
-                        	dev->usb_dma_trigger_next = 1;
-                        start_write(ep, buf, USBD_DMA_LEN);
-                        //len = USBD_DMA_LEN;
-                } else {
-                	if (size >= ep->ep.maxpacket) {
-                        	count = size/ep->ep.maxpacket;
-                                count *= ep->ep.maxpacket;
+		if(ep->EP_Type == EP_TYPE_ISO && __raw_readl(REG_USBD_HEAD_WORD0)!= 0)
+		{	
+//			printk("    Start 0x%x - len 0x%x\n",buf, size);
+			__raw_writel(((__raw_readl(REG_USBD_HEAD_WORD0)& ~0x300) | ((iso_frame_count & 0x01) << 8)) , REG_USBD_HEAD_WORD0);
+		        loop = size / USBD_ISO_DMA_LEN;
+			if (loop > 0) {
+        	                dev->usb_dma_trigger_next = 1;
+                	        start_write(ep, buf, USBD_ISO_DMA_LEN);
+                        	//len = USBD_DMA_LEN;
+	                } else {
+                               	dev->usb_less_mps = 1;
+				dev->usb_dma_trigger_next  = 0;
+      	                        start_write(ep, buf, size);
+			}
+		}
+		else
+		{
+              		if (loop > 0) {
+        	                	dev->usb_dma_trigger_next = 1;
+                	        start_write(ep, buf, USBD_DMA_LEN);
+                        	//len = USBD_DMA_LEN;
+	                } else {
+        	        	if (size >= ep->ep.maxpacket) {
+                	        	count = size/ep->ep.maxpacket;
+                        	        count *= ep->ep.maxpacket;
 
-                                if (count < size)
-                                	dev->usb_dma_trigger_next = 1;
-                                start_write(ep, buf, count);
-                                //len = count;
-                	} else {
-                        	if (ep->EP_Type == EP_TYPE_BLK)
-                                	dev->usb_less_mps = 1;
-                                start_write(ep, buf, size);
-                                        //len = size;
-                        }
+                                	if (count < size)
+	                                	dev->usb_dma_trigger_next = 1;
+        	                        start_write(ep, buf, count);
+                	                //len = count;
+                		} else {
+                        		if (ep->EP_Type == EP_TYPE_BLK || ep->EP_Type == EP_TYPE_ISO)
+	                                dev->usb_less_mps = 1;
+        	                        start_write(ep, buf, size);
+                	                        //len = size;
+                        	}
+			}
                 }
         } else if (mode == DMA_READ) {
                 dev->usb_dma_dir = Ep_Out;
@@ -1956,7 +2112,7 @@ static int /*__init*/ w55fa93_udc_probe(struct platform_device *pdev)
         int error, i;
         dev_dbg(dev, "%s()\n", __func__);
 
-	printk("w55fa93_udc_probe 20160513\n");
+	printk("w55fa93_udc_probe 20180820\n");
         udc->pdev = pdev;
         udc->gadget.dev.parent = &pdev->dev;
         udc->gadget.dev.dma_mask = pdev->dev.dma_mask;

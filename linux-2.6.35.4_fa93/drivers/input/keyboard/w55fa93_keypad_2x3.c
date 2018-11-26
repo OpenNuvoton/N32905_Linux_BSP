@@ -106,6 +106,39 @@ static void read_key(unsigned long arg)
                 disable_irq_nosync(KPD_IRQ_NUM);	//disable_irq(KPD_IRQ_NUM);
         }
 
+#ifdef CONFIG_N9H2X_KEYPAD_2X3
+	 new_key = readl(REG_GPIOA_PIN) & 0x1C;
+
+	if ((new_key & 0x1C) == 0x1C) { // all key released
+
+//	  printk("->0\n");
+                for (i = 0; i < KEY_COUNT; i++) {
+                        if (old_key & (1 << i)) {
+                                input_report_key(w55fa93_keypad_input_dev, key_map[i], 0);     //key up
+                                input_sync(w55fa93_keypad_input_dev);
+                        }
+                }
+                old_key = 0;
+                del_timer(&kpd_timer);
+                timer_active = 0;
+                enable_irq(KPD_IRQ_NUM);
+		w55fa93_key_pressing = 0;
+                return;
+        }
+
+	read0 = new_key;
+	writel(readl(REG_GPIOA_DOUT) |(1 << 7), REG_GPIOA_DOUT); // GPA7 high
+	
+	read1 = readl(REG_GPIOA_PIN) & 0x1C;
+	
+	if(read1 == 0x1C)
+		new_key = (read0 ^ read1)>>2;
+	else
+		new_key = ((~read0 & 0x1C)<<1);
+
+	writel(readl(REG_GPIOA_DOUT) & ~(1 << 7), REG_GPIOA_DOUT); // GPA7 low	
+	
+#else
 	 new_key = readl(REG_GPIOA_PIN) & 0xE0;
 
 	if ((new_key & 0xE0) == 0xE0) { // all key released
@@ -136,6 +169,8 @@ static void read_key(unsigned long arg)
 		new_key = ((~read0 & 0xE0)>>2);
 
 	writel(readl(REG_GPIOA_DOUT) & ~(1 << 2), REG_GPIOA_DOUT); // GPA2 low	
+	
+#endif	
 
 	for (i = 0; i < KEY_COUNT; i++) {
                 if ((new_key ^ old_key) & (1 << i)) {// key state change
@@ -173,7 +208,11 @@ static irqreturn_t w55fa93_kpd_irq(int irq, void *dev_id) {
         read_key(0);
 
         // clear source
+#ifdef CONFIG_N9H2X_KEYPAD_2X3
+	writel(src & 0x000001C, REG_IRQTGSRC0);
+#else        
 	writel(src & 0x00000E0, REG_IRQTGSRC0);
+#endif
 
         return IRQ_HANDLED;
 }
@@ -192,7 +231,11 @@ int w55fa93_kpd_open(struct input_dev *dev) {
         kpd_timer.data = 1;
         writel((1 << KPD_IRQ_NUM),  REG_AIC_SCCR); // force clear previous interrupt, if any.
 
-	writel(readl(REG_IRQTGSRC0) & 0x00000E0, REG_IRQTGSRC0); // clear source
+#ifdef CONFIG_N9H2X_KEYPAD_2X3
+	writel(readl(REG_IRQTGSRC0) & 0x000001C, REG_IRQTGSRC0); // clear source
+#else
+	writel(readl(REG_IRQTGSRC0) & 0x00000E0, REG_IRQTGSRC0); 
+#endif	
 
         if (request_irq(KPD_IRQ_NUM, w55fa93_kpd_irq, IRQF_DISABLED, "Keypad",NULL) != 0) {
                 printk("register the keypad_irq failed!\n");
@@ -200,7 +243,11 @@ int w55fa93_kpd_open(struct input_dev *dev) {
         }
 
 	//enable falling edge triggers
+#ifdef CONFIG_N9H2X_KEYPAD_2X3
+	writel((readl(REG_IRQENGPA)& ~(0x001C0000)) | 0x000001C, REG_IRQENGPA); 
+#else	
 	writel((readl(REG_IRQENGPA)& ~(0x00E00000)) | 0x00000E0, REG_IRQENGPA); 
+#endif
 
 exit:
         open_cnt++;
@@ -213,7 +260,11 @@ void w55fa93_kpd_close(struct input_dev *dev) {
         open_cnt--;
         if (open_cnt == 0) {
 	//disable falling edge triggers
+#ifdef CONFIG_N9H2X_KEYPAD_2X3
+	writel((readl(REG_IRQENGPA)& ~(0x001C001C)), REG_IRQENGPA);
+#else	
 	writel((readl(REG_IRQENGPA)& ~(0x00E000E0)), REG_IRQENGPA); 
+#endif
 
                 del_timer(&kpd_timer);
                 free_irq(KPD_IRQ_NUM,NULL);
@@ -226,6 +277,21 @@ static int __init w55fa93_kpd_reg(void) {
 
         int i, err;
 
+#ifdef CONFIG_N9H2X_KEYPAD_2X3
+        // init GPIO
+        // PORTA[2-4]
+        writel(readl(REG_GPIOA_OMD) & ~((1 << 2) | (1 << 3) | (1 << 4)), REG_GPIOA_OMD); // input
+        writel(readl(REG_GPIOA_PUEN) | ((1 << 2) | (1 << 3) | (1 << 4)), REG_GPIOA_PUEN); // pull-up
+        writel(readl(REG_IRQSRCGPA) & ~(0x03F0), REG_IRQSRCGPA); // GPA[2~4] as nIRQ0 source
+	writel((readl(REG_IRQENGPA)& ~(0x001C0000)) | 0x000001C, REG_IRQENGPA); // falling edge trigger
+	writel((readl(REG_AIC_SCR1)& ~(0x00C70000)) | 0x00470000, REG_AIC_SCR1);
+        
+        // PORT A[7 ]
+        writel(readl(REG_GPIOA_OMD) | (1 << 7), REG_GPIOA_OMD);  // output
+        writel(readl(REG_GPIOA_PUEN) | (1 << 7), REG_GPIOA_PUEN); // pull up
+        writel(readl(REG_GPIOA_DOUT) & ~(1 << 7), REG_GPIOA_DOUT); // low
+        writel(readl(REG_GPAFUN) & ~(0xC3F0), REG_GPAFUN);  
+#else
         // init GPIO
         // PORTA[5-7]
         writel(readl(REG_GPIOA_OMD) & ~((1 << 5) | (1 << 6) | (1 << 7)), REG_GPIOA_OMD); // input
@@ -239,6 +305,7 @@ static int __init w55fa93_kpd_reg(void) {
         writel(readl(REG_GPIOA_PUEN) | (1 << 2), REG_GPIOA_PUEN); // pull up
         writel(readl(REG_GPIOA_DOUT) & ~(1 << 2), REG_GPIOA_DOUT); // low
         writel(readl(REG_GPAFUN) & ~(0xFC30), REG_GPAFUN);  
+#endif		
 
 	writel(readl(REG_DBNCECON) |0x71, REG_DBNCECON);
         if (!(w55fa93_keypad_input_dev = input_allocate_device())) {

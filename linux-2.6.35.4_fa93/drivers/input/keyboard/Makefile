@@ -41,3 +41,4 @@ obj-$(CONFIG_KEYBOARD_W90P910)		+= w90p910_keypad.o
 obj-$(CONFIG_W55FA93_KEYPAD_1X4)	+= w55fa93_keypad_1x4.o
 obj-$(CONFIG_W55FA93_KEYPAD_2X3)	+= w55fa93_keypad_2x3.o
 obj-$(CONFIG_W55FA93_KEYPAD_3X3)	+= w55fa93_keypad_3x3.o
+obj-$(CONFIG_N9H2X_KEYPAD_2X3)	        += w55fa93_keypad_2x3.o

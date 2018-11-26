@@ -473,6 +473,15 @@ config USB_SERIAL_PL2303
 	  To compile this driver as a module, choose M here: the
 	  module will be called pl2303.
 
+config USB_SERIAL_NVTVCOM
+	tristate "USB Nuvoton VCOM Single Port Serial Driver"
+	help
+	  Say Y here if you want to use the Nuvoton VCOM USB Serial single port
+	  adapter from Nuvoton.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called nvtVCOM.
+
 config USB_SERIAL_OTI6858
 	tristate "USB Ours Technology Inc. OTi-6858 USB To RS232 Bridge Controller"
 	help

@@ -3,7 +3,7 @@
 ##
 
 config SOUND_W55FA93_PLAY_DEVICE
-	tristate "W55FA93 Audio Play Device"
+	tristate "N9H2x/N329xx/W55FA93 Audio Play Device"
 
 choice
     prompt "Play device select"
@@ -11,14 +11,14 @@ choice
 	depends on SOUND_W55FA93_PLAY_DEVICE
 
 config SND_SOC_W55FA93_SPU
-        bool "W55FA93 SPU Support for Playing"
+        bool "N9H2x/N329xx/W55FA93 SPU Support for Playing"
 
 config SND_SOC_W55FA93_I2S
         bool "NAU8822 I2S Audio Codec Support for Playing and Recording"
 endchoice
 
 config SND_SOC_W55FA93_I2S_ONLY
-	tristate "W55FA93 Audio I2S Playing without Codec"
+	tristate "N9H2x/N329xx/W55FA93 Audio I2S Playing without Codec"
 	depends on SND_SOC_W55FA93_I2S
 
 choice
@@ -27,10 +27,10 @@ choice
 	depends on SND_SOC_W55FA93_SPU && !W55FA93_TV_FROM_APLL
 
 config SPU_WITH_I2S_OUTPUT
-        bool "W55FA93 SPU with I2S signal output"
+        bool "N9H2x/N329xx/W55FA93 SPU with I2S signal output"
 
 config SPU_WITHOUT_I2S_OUTPUT
-		bool "W55FA93 SPU without I2S signal output"
+		bool "N9H2x/N329xx/W55FA93 SPU without I2S signal output"
 endchoice
 
 choice

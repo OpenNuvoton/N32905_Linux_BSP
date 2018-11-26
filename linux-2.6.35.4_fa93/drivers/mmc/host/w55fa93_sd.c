@@ -32,7 +32,7 @@
 #include <mach/w55fa93_reg.h>
 
 // define DATE CODE and show it when running to make maintaining easy.
-#define DATE_CODE   "20161207"
+#define DATE_CODE   "20180928"
 
 //--- Define compile flags depend on Kconfig
 #ifdef CONFIG_FA93_SD_SD0_SD1
@@ -179,8 +179,15 @@ static int nvt_sd_card_detect(struct mmc_host *mmc)
     }
 
     if (host->port == 0)
+    {
+  #ifdef CONFIG_SD0_CD_GPA1
         host->present = nvt_sd_read(REG_SDISR) & SDISR_CD_Card;
-
+  #elif defined (CONFIG_SD0_CD_GPA0)
+        host->present = 0;  // default is card inserted.
+        if (nvt_sd_read(REG_GPIOA_PIN) & BIT0)
+            host->present = 1;  // GPA0 high means card removed.
+  #endif
+    }
 #ifdef NVT_SD_SD1
     else if (host->port == 1)
     {
@@ -502,6 +509,19 @@ static void nvt_sd_enable(struct nvt_sd_host *host)
     // SD 2 GPIO select: set GPD5~8 and GPE8~9 to SD card mode (SD2_CLK/SD2_CMD/DAT2[0~3])
     nvt_sd_write(REG_GPEFUN, (nvt_sd_read(REG_GPEFUN) & (~0x000F0000)) | 0x00050000);
     nvt_sd_write(REG_GPDFUN, (nvt_sd_read(REG_GPDFUN) & (~0x0003FC00)) | 0x00015400);
+#endif
+
+#if defined (CONFIG_SD0_CD_GPA0)
+    //--- Select GPA0 as SD port 0 card detection. HIGH means card removed, LOW means inserted.
+    // Set GPA0 to GPIO mode for SD port 0 card detection.
+    nvt_sd_write(REG_GPAFUN, nvt_sd_read(REG_GPAFUN) & (~MF_GPA0));     // set GPA0 to GPIO mode
+    nvt_sd_write(REG_GPIOA_PUEN, nvt_sd_read(REG_GPIOA_PUEN) | BIT0);   // set GPA0 internal pull high
+    nvt_sd_write(REG_GPIOA_OMD, nvt_sd_read(REG_GPIOA_OMD) & (~BIT0));  // set GPA0 to input mode
+
+    // Set GPA0 as interrupt pin and bind to GPIO1 interrupt
+    nvt_sd_write(REG_IRQTGSRC0, BIT0);     // clear GPA0 interrupt status
+    nvt_sd_write(REG_IRQSRCGPA, (nvt_sd_read(REG_IRQSRCGPA) & (~0x00000003)) | 0x00000001);   // set GPA0 as GPIO1 interrupt trigger source
+    nvt_sd_write(REG_IRQENGPA, nvt_sd_read(REG_IRQENGPA) | BIT0 | BIT16);   // set GPA0 trigger by both falling and rising edge
 #endif
 
 #if defined (NVT_SD_SD1) || defined (NVT_SD_SD2)
@@ -1596,6 +1616,39 @@ static irqreturn_t nvt_sd_irq(int irq, void *devid)
 }
 
 
+#if (!defined(CONFIG_SD0_CD_GPA1))
+//-------------------------------------------------
+// Handle the GPIO1 interrupt for SD0 card detection.
+//      SD0 card detect interrupt bind to GPIO1 interrupt
+// NOTE: CONFIG_SD0_CD_GPA1 is default SD0 Card Detect pin and
+//       handled by IRQ nvt_sd_irq(), not here.
+//-------------------------------------------------
+static irqreturn_t nvt_sd0_card_detect_irq(int irq, void *devid)
+{
+    struct nvt_sd_host *host = devid;
+    u32 src;
+
+#ifdef CONFIG_SD0_CD_GPA0
+    src = nvt_sd_read(REG_IRQTGSRC0);
+    if (src & BIT0) // This interrupt is trigger by GPA0
+    {
+        // nvt_sd_debug("--> nvt_sd0_card_detect_irq() GPA0 interrupt happened !\n");
+        if (nvt_sd_read(REG_GPIOA_PIN) & BIT0)
+            host->present = 1;  // card removed
+        else
+            host->present = 0;  // card inserted
+        /* 0.5s needed because of early card detect switch firing */
+        mmc_detect_change(host->mmc, msecs_to_jiffies(500));
+        nvt_sd_write(REG_IRQTGSRC0, BIT0); // clear GPA0 interrupt status
+        return IRQ_HANDLED;
+    }
+    else
+        return IRQ_NONE;    // interrupt was not from this device
+#endif
+}
+#endif  // end of CONFIG_SD0_CD_GPA1
+
+
 #if (defined(NVT_SD_SD1) && (!defined(CONFIG_SD1_CD_NONE)))
 //-------------------------------------------------
 // Handle the GPIO1 interrupt for SD1 card detection.
@@ -2000,6 +2053,15 @@ static int __init nvt_sd_probe(struct platform_device *pdev)
         goto fail0;
     }
 
+  #if defined (CONFIG_SD0_CD_GPA0)
+    // Allocate the GPIO1 interrupt handler. SD0 card detect GPxx bind to GPIO1 interrupt.
+    ret = request_irq(IRQ_GPIO1, nvt_sd0_card_detect_irq, IRQF_SHARED, mmc_hostname(mmc), host);
+    if (ret) {
+        dev_dbg(&pdev->dev, "Error: request GPIO1 interrupt for SD0 Card Detect failed!\n");
+        goto fail0;
+    }
+  #endif
+
     /* add a thread to check CO, RI, and R2 */
     kernel_thread(sd_event_thread, NULL, 0);
 
@@ -2090,7 +2152,7 @@ static int __init nvt_sd_probe(struct platform_device *pdev)
     // Allocate the GPIO1 interrupt handler. SD1 card detect GPxx bind to GPIO1 interrupt.
     ret = request_irq(IRQ_GPIO1, nvt_sd1_card_detect_irq, IRQF_SHARED, mmc_hostname(mmc1), host1);
     if (ret) {
-        dev_dbg(&pdev->dev, "Error: request GPIO1 interrupt failed!\n");
+        dev_dbg(&pdev->dev, "Error: request GPIO1 interrupt for SD1 Card Detect failed!\n");
         goto fail10;
     }
   #endif
@@ -2186,7 +2248,7 @@ static int __init nvt_sd_probe(struct platform_device *pdev)
     // Allocate the GPIO1 interrupt handler. SD2 card detect GPxx bind to GPIO1 interrupt.
     ret = request_irq(IRQ_GPIO1, nvt_sd2_card_detect_irq, IRQF_SHARED, mmc_hostname(mmc2), host2);
     if (ret) {
-        dev_dbg(&pdev->dev, "Error: request GPIO1 interrupt failed!\n");
+        dev_dbg(&pdev->dev, "Error: request GPIO1 interrupt for SD2 Card Detect failed!\n");
         goto fail20;
     }
   #endif

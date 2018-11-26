@@ -208,7 +208,7 @@ config USB_OHCI_HCD
 	  module will be called ohci-hcd.
 
 config W55FA93_USB_HOST
-        bool "Nuvoton W55FA93 OHCI support"
+        bool "Nuvoton N9H2x/N329xx/W55FA93 OHCI support"
         depends on USB_OHCI_HCD&&ARCH_W55FA93
 
 choice

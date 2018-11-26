@@ -18,7 +18,8 @@
 #define __W55FA93_USBD_H
 
 
-#define USBD_DMA_LEN	0x10000
+#define USBD_DMA_LEN		0x10000
+#define USBD_ISO_DMA_LEN	0xF0000
 #define USB_HIGHSPEED	2
 #define USB_FULLSPEED	1
 #define EPSTADDR        0x400
@@ -102,9 +103,9 @@
 //Bit Definitons of EP_RSP_SC Register
 #define EP_BUFF_FLUSH           0x01
 #define EP_MODE                 0x06
-#define EP_MODE_AUTO	        0x01
+#define EP_MODE_AUTO	        0x00
 #define EP_MODE_MAN 	        0x02
-#define EP_MODE_FLY		0x03
+#define EP_MODE_FLY		0x04
 #define EP_TOGGLE		0x8
 #define EP_HALT			0x10
 #define EP_ZERO_IN              0x20

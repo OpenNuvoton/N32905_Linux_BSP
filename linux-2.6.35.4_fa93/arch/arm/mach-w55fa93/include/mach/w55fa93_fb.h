@@ -197,6 +197,26 @@ struct w55fa93fb_info {
 #define LCDBPP 16
 #endif
 
+#ifdef CONFIG_FW043TFT_480x272_24B
+#define LCDWIDTH 	480
+#define LCDHEIGHT 	272
+	#ifdef CONFIG_RGBx888_FORMAT
+	#define LCDBPP 32
+	#else
+	#define LCDBPP 16
+	#endif
+#endif
+
+#ifdef CONFIG_FW050TFT_800x480_24B
+#define LCDWIDTH 	800
+#define LCDHEIGHT 	480
+	#ifdef CONFIG_RGBx888_FORMAT
+	#define LCDBPP 32
+	#else
+	#define LCDBPP 16
+	#endif
+#endif
+
 #define DISPLAY_MODE_RGB565		1
 #define DISPLAY_MODE_RGBx888	2
 #define DISPLAY_MODE_RGB888x	3

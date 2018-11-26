@@ -1773,7 +1773,7 @@
 #define REG_USBD_EPB_TRF_CNT	(PA_VA_USB_BASE+0xa4)		/* endpoint B transfer count register */
 #define REG_USBD_EPB_CFG		(PA_VA_USB_BASE+0xa8)		/* endpoint B configuration register */
 #define REG_USBD_EPB_START_ADDR	(PA_VA_USB_BASE+0xac)		/* endpoint B ram start address register */
-#define REG_USBD_EPB_END_ADDR	(PA_VA_USB_BASE+0xb0)		/* endpoint B ram end address register */
+#define REG_USBD_EPB_END_ADDR	(PA_VA_USB_BASE+0xb0)		/* endpoint B ram end addresUSBDs register */
 /* endpoint C */
 #define REG_USBD_EPC_DATA_BUF	(PA_VA_USB_BASE+0xb4)		/* endpoint C data buffer register */
 #define REG_USBD_EPC_IRQ_STAT	(PA_VA_USB_BASE+0xb8)		/* endpoint C interrupt status register */
@@ -1818,6 +1818,17 @@
 #define REG_USBD_EPF_CFG		(PA_VA_USB_BASE+0x148)		/* endpoint F configuration register */
 #define REG_USBD_EPF_START_ADDR	(PA_VA_USB_BASE+0x14c)		/* endpoint F ram start address register */
 #define REG_USBD_EPF_END_ADDR	(PA_VA_USB_BASE+0x150)		/* endpoint F ram end address register */
+
+#define REG_USBD_HEAD_WORD0		(PA_VA_USB_BASE+0x158)	/* first head data */
+#define REG_USBD_HEAD_WORD1		(PA_VA_USB_BASE+0x15C)	/* second head data */
+#define REG_USBD_HEAD_WORD2		(PA_VA_USB_BASE+0x160)	/* third head data */
+#define REG_USBD_EPA_HEAD_CNT		(PA_VA_USB_BASE+0x164)	/* EPA head count */
+#define REG_USBD_EPB_HEAD_CNT		(PA_VA_USB_BASE+0x168)	/* EPB head count */
+#define REG_USBD_EPC_HEAD_CNT		(PA_VA_USB_BASE+0x16C)	/* EPC head count */
+#define REG_USBD_EPD_HEAD_CNT		(PA_VA_USB_BASE+0x170)	/* EPD head count */
+#define REG_USBD_EPE_HEAD_CNT		(PA_VA_USB_BASE+0x174)	/* EPE head count */
+#define REG_USBD_EPF_HEAD_CNT		(PA_VA_USB_BASE+0x178)	/* EPF head count */
+
 #define REG_USBD_AHB_DMA_ADDR	(PA_VA_USB_BASE+0x700)		/* AHB_DMA address register */
 #define REG_USBD_PHY_CTL    (PA_VA_USB_BASE+0x704)           /* USB PHY control register */
 	#define bisten		BIT0

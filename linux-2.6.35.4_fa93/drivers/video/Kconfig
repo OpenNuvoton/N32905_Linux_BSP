@@ -1997,14 +1997,14 @@ config FB_NUC900_DEBUG
           through sysfs
 
 config FB_W55FA93
-	tristate "W55FA93 LCD framebuffer support"
+	tristate "N9H2x/N329xx/W55FA93 LCD framebuffer support"
 	depends on FB && ARCH_W55FA93
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	---help---
 	  Frame buffer driver for the built-in LCD controller in the Nuvoton
-	  W55FA93 processor
+	  N9H2x/N329xx/W55FA93 processor
 choice
         prompt "Select VPOST init setting"
         default W55FA93_FB_NO_INIT
@@ -2173,6 +2173,11 @@ choice
 	config HANNSTARR_HSD043I9W1_480x272
 		bool "HANNSTARR_HSD043I9W1 480x272 LCD with TV switch support"
 	
+	config FW043TFT_480x272_24B
+		bool "FW043TFT 480x272 24 bits LCD"
+
+	config FW050TFT_800x480_24B
+		bool "FW050TFT 800x480 24 bits LCD"
 	config SHARP_LQ035Q1DH02_320X240
 		bool "SHARP_LQ035Q1DH02 320X240 LCD support"
 	
@@ -2210,7 +2215,7 @@ endchoice
 choice
         prompt "Select Video format RGB565 or RGBx888"
         default RGB565_FORMAT
-    	depends on (FB_W55FA93 && GIANTPLUS_GPM1006D0_320X240)
+   	depends on GIANTPLUS_GPM1006D0_320X240 || FW043TFT_480x272_24B || FW050TFT_800x480_24B
 	config RGB565_FORMAT
 		bool "Video foramt is RGB565"
 	

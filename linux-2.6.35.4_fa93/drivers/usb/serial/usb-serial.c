@@ -792,12 +792,14 @@ int usb_serial_probe(struct usb_interface *interface,
 		}
 	}
 
-#if defined(CONFIG_USB_SERIAL_PL2303) || defined(CONFIG_USB_SERIAL_PL2303_MODULE)
+#if defined(CONFIG_USB_SERIAL_PL2303) || defined(CONFIG_USB_SERIAL_PL2303_MODULE) || defined(CONFIG_USB_SERIAL_NVTVCOM) || defined(CONFIG_USB_SERIAL_NVTVCOM_MODULE)
 	/* BEGIN HORRIBLE HACK FOR PL2303 */
 	/* this is needed due to the looney way its endpoints are set up */
 	if (((le16_to_cpu(dev->descriptor.idVendor) == PL2303_VENDOR_ID) &&
 	     (le16_to_cpu(dev->descriptor.idProduct) == PL2303_PRODUCT_ID)) ||
-	    ((le16_to_cpu(dev->descriptor.idVendor) == ATEN_VENDOR_ID) &&
+	    ((le16_to_cpu(dev->descriptor.idVendor) == NVTVCOM_VENDOR_ID) &&
+	     (le16_to_cpu(dev->descriptor.idProduct) == NVTVCOM_PRODUCT_ID)) ||
+            ((le16_to_cpu(dev->descriptor.idVendor) == ATEN_VENDOR_ID) &&
 	     (le16_to_cpu(dev->descriptor.idProduct) == ATEN_PRODUCT_ID)) ||
 	    ((le16_to_cpu(dev->descriptor.idVendor) == ALCOR_VENDOR_ID) &&
 	     (le16_to_cpu(dev->descriptor.idProduct) == ALCOR_PRODUCT_ID)) ||
@@ -821,11 +823,25 @@ int usb_serial_probe(struct usb_interface *interface,
 		 * If not, give up now and hope this hack will work
 		 * properly during a later invocation of usb_serial_probe
 		 */
-		if (num_bulk_in == 0 || num_bulk_out == 0) {
-			unlock_kernel();
-			dev_info(&interface->dev, "PL-2303 hack: descriptors matched but endpoints did not\n");
-			kfree(serial);
-			return -ENODEV;
+
+	       if((le16_to_cpu(dev->descriptor.idVendor) == NVTVCOM_VENDOR_ID) &&
+	         (le16_to_cpu(dev->descriptor.idProduct) == NVTVCOM_PRODUCT_ID))
+		{
+			if (num_bulk_in == 0 || num_bulk_out == 0) {
+				unlock_kernel();
+				dev_info(&interface->dev, "nvtVCOM hack: descriptors matched but endpoints did not\n");
+				kfree(serial);
+				return -ENODEV;
+			}
+		}
+		else
+		{
+			if (num_bulk_in == 0 || num_bulk_out == 0) {
+				unlock_kernel();
+				dev_info(&interface->dev, "PL-2303 hack: descriptors matched but endpoints did not\n");
+				kfree(serial);
+				return -ENODEV;
+			}
 		}
 	}
 	/* END HORRIBLE HACK FOR PL2303 */

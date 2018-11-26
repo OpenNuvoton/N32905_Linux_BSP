@@ -582,7 +582,7 @@ config TOUCHSCREEN_NUC900
 	  module will be called nuc900_ts.
 
 config TOUCHSCREEN_W55FA93
-	tristate "W55FA93 touchscreens"
+	tristate "N9H2x/N329xx/W55FA93 touchscreens"
 	depends on CPU_W55FA93
 	help
 	  If unsure, say N (but it's safe to say "Y").

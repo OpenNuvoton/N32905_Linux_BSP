@@ -795,13 +795,13 @@ config PLAT_SPEAR
 	  Support for ST's SPEAr platform (SPEAr3xx, SPEAr6xx and SPEAr13xx).
 
 config ARCH_W55FA93
-	bool "Nuvoton W55FA93 MCU"
+	bool "Nuvoton N9H2x/N329xx/W55FA93 MCU"
 	select CPU_ARM926T
 	select ARCH_REQUIRE_GPIOLIB
 	select COMMON_CLKDEV
 	select GENERIC_CLOCKEVENTS
 	help
-	  Nuvoton Tech. Corp. W55FA93 CPU based systems
+	  Nuvoton Tech. Corp. N9H2x/N329xx/W55FA93 CPU based systems
 
 endchoice
 

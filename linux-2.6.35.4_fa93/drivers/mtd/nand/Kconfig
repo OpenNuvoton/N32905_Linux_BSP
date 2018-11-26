@@ -521,10 +521,10 @@ config MTD_NAND_SOCRATES
 
 
 config MTD_NAND_W55FA93
-	tristate "Support for NAND on Nuvoton W55FA93 demo board"
+	tristate "Support for NAND on Nuvoton N9H2x/N329xx/W55FA93 demo board"
 	depends on MTD_PARTITIONS
     help
-        ECC management for W55FA93 NAND flash
+        ECC management for N9H2x/N329xx/W55FA93 NAND flash
 
 	choice
 	    prompt "MTD NAND select"

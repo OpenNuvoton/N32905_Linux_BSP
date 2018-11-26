@@ -1,8 +1,8 @@
 config W55FA93_VIDEOIN_DEV1
-	bool "W55FA93 video capture port 1 support"
+	bool "N9H2x/N329xx/W55FA93 video capture port 1 support"
 	depends on ARCH_W55FA93 && VIDEO_DEV
 	---help---
-	  Say Y here if you have W55FA93chip(nuvoTon).
+	  Say Y here if you have N9H2x/N329xx/W55FA93 chip (nuvoTon).
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called W55FA93_videoin_dev1.

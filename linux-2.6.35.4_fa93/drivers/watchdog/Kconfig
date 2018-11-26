@@ -325,10 +325,10 @@ config IMX2_WDT
 	  module will be called imx2_wdt.
 
 config W55FA93_WDT
-	tristate "Nuvoton W55FA93"
+	tristate "Nuvoton N9H2x/N329xx/W55FA93"
 	depends on ARCH_W55FA93
 	help
-	  If you say Y here you will get WDT to built into your W55FA93 CPU.
+	  If you say Y here you will get WDT to built into your N9H2x/N329xx/W55FA93 CPU.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called w55fa93_wdt.	

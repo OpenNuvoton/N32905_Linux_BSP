@@ -343,24 +343,24 @@ static void w55fa93_serial_shutdown(struct uart_port *port)
 	struct w55fa93_uart_port *ourport = to_ourport(port);
 	
 	if (ourport->tx_claimed || ourport->rx_claimed) {
+		if (ourport->tx_claimed) {	
+			tx_disable(port);
+			tx_enabled(port) = 0;
+			ourport->tx_claimed = 0;
+		}
+
+		if (ourport->rx_claimed) {
+			rx_disable(port);
+			ourport->rx_claimed = 0;
+			rx_enabled(port) = 0;
+		}
+
 		free_irq(RX_IRQ(port), ourport);
 #ifdef CONFIG_SERIAL_W55FA93_HUART
 		//if (ourport->port.irq == IRQ_HUART)
 		//	__raw_writel(__raw_readl(REG_APBCLK)&~UART0_CKE, REG_APBCLK);
 #endif
 		clk_disable(ourport->clk);
-	}
-	
-	if (ourport->tx_claimed) {	
-		tx_disable(port);
-		tx_enabled(port) = 0;
-		ourport->tx_claimed = 0;
-	}
-
-	if (ourport->rx_claimed) {
-		rx_disable(port);
-		ourport->rx_claimed = 0;
-		rx_enabled(port) = 0;
 	}
 }
 

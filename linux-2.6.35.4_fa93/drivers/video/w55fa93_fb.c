@@ -297,6 +297,14 @@ static int w55fa93_osd_function(osd_cmd_t* osd_ptr);
 #include "w55fa93_GOWORLD_GW07000TNWV.c"
 #endif
 
+#ifdef CONFIG_FW043TFT_480x272_24B
+#include "w55fa93_FW043TFT_480x272_24B.c"
+#endif
+
+#ifdef CONFIG_FW050TFT_800x480_24B
+#include "w55fa93_FW050TFT_800x480_24B.c"
+#endif
+
 volatile static int osd_hsize = LCDWIDTH;
 volatile static int osd_vsize = LCDHEIGHT;
 

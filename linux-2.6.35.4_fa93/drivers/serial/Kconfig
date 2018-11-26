@@ -699,23 +699,23 @@ config SERIAL_SA1100_CONSOLE
 	  kernel at boot time.)
 
 config SERIAL_W55FA93
-	bool "Nuvoton W55FA93 Serial port support"
+	bool "Nuvoton N9H2x/N329xx/W55FA93 Serial port support"
 	depends on ARM && ARCH_W55FA93
 	select SERIAL_CORE
 	help
-	  Support for the on-chip UART on the Nuvoton W55FA93 CPUs
+	  Support for the on-chip UART on the Nuvoton N9H2x/N329xx/W55FA93 CPUs
 config SERIAL_W55FA93_HUART
-	bool "Nuvoton W55FA93 HUART support"
+	bool "Nuvoton N9H2x/N329xx/W55FA93 HUART support"
 	depends on SERIAL_W55FA93
 	help
-	  Support HUART on the Nuvoton W55FA93 CPUs, this will disable JTAG interface
+	  Support HUART on the Nuvoton N9H2x/N329xx/W55FA93 CPUs, this will disable JTAG interface
 
 config SERIAL_W55FA93_CONSOLE
-	bool "Support for console on W55FA93 serial port"
+	bool "Support for console on N9H2x/N329xx/W55FA93 serial port"
 	depends on SERIAL_W55FA93=y || SERIAL_W55FA93_DUMMY=y
 	select SERIAL_CORE_CONSOLE 
 	help
-	  Allow selection of the W55FA93 on-board serial ports for use as
+	  Allow selection of the N9H2x/N329xx/W55FA93 on-board serial ports for use as
 	  an virtual console.
 
 config SERIAL_BFIN

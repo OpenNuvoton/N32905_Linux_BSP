@@ -354,19 +354,19 @@ config VMWARE_BALLOON
 	  module will be called vmware_balloon.
 	  
 config W55FA93_PWM
-	tristate "W55FA93 PWM support"
+	tristate "N9H2x/N329xx/W55FA93 PWM support"
 	depends on ARCH_W55FA93
 	help
 	  This option enables device driver support for the PWM channels
-	  on the Cirrus W55FA93 processors.  The W55FA93 chip has four 
-	  PWM channels.  A sysfs interface is provided to control the 
-	  PWM channels.
+	  on the Cirrus N9H2x/N329xx/W55FA93 processors. The N9H2x/N329xx/W55FA93 
+	  chip has four PWM channels. A sysfs interface is provided to control
+	  the PWM channels.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called W55FA93_pwm.
 	  
 choice
-	prompt "W55FA93 PWM channel 0 output pin"
+	prompt "N9H2x/N329xx/W55FA93 PWM channel 0 output pin"
 	default W55FA93_PWM0_NONE
 	depends on W55FA93_PWM
 	help
@@ -381,7 +381,7 @@ choice
 endchoice
 
 choice
-	prompt "W55FA93 PWM channel 1 output pin"
+	prompt "N9H2x/N329xx/W55FA93 PWM channel 1 output pin"
 	default W55FA93_PWM1_NONE
 	depends on W55FA93_PWM
 	help
@@ -396,7 +396,7 @@ choice
 endchoice
 
 choice
-	prompt "W55FA93 PWM channel 2 output pin"
+	prompt "N9H2x/N329xx/W55FA93 PWM channel 2 output pin"
 	default W55FA93_PWM2_NONE
 	depends on W55FA93_PWM
 	help
@@ -411,7 +411,7 @@ choice
 endchoice
 
 choice
-	prompt "W55FA93 PWM channel 3 output pin"
+	prompt "N9H2x/N329xx/W55FA93 PWM channel 3 output pin"
 	default W55FA93_PWM3_NONE
 	depends on W55FA93_PWM
 	help

@@ -802,14 +802,14 @@ config NVRAM
 	  module will be called nvram.
 
 config  W55FA93_SYSMGR
-	bool "Nuvoton W55FA93 System Manager"
+	bool "Nuvoton N9H2x/N329xx/W55FA93 System Manager"
 	depends on ARCH_W55FA93
 
 config  W55FA93_BLT
-	bool "Nuvoton W55FA93 BLT Device Driver"
+	bool "Nuvoton N9H2x/N329xx/W55FA93 BLT Device Driver"
 	depends on ARCH_W55FA93
 	---help---
-	  Say Y here if you wnat to use W55FA93's hardware BLT.	  
+	  Say Y here if you wnat to use N9H2x/N329xx/W55FA93's hardware BLT.	  
 
 #
 # These legacy RTC drivers just cause too many conflicts with the generic

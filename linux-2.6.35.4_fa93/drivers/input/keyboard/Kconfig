@@ -427,7 +427,7 @@ config KEYBOARD_W90P910
 	  module will be called w90p910_keypad.
 	  
 config W55FA93_KEYPAD
-        bool "Nuvoton W55FA93 Keypad Support"
+        bool "Nuvoton N9H2x/N329xx/W55FA93 Keypad Support"
         depends on INPUT&&ARCH_W55FA93
 
 choice
@@ -436,13 +436,16 @@ choice
 	depends on  W55FA93_KEYPAD
 	
 config W55FA93_KEYPAD_1X4
-        bool "1 x 4 event interface"
+        bool "N329xx (1 x 4) event interface"
         
 config W55FA93_KEYPAD_2X3
-        bool "2 x 3 event interface"
+        bool "N329xx (2 x 3) event interface"
 
 config W55FA93_KEYPAD_3X3
-        bool "3 x 3 event interface"
+        bool "N329xx (3 x 3) event interface"
+        
+config N9H2X_KEYPAD_2X3
+        bool "N9H2x (2 x 3) event interface"        
         
 endchoice       	  
 

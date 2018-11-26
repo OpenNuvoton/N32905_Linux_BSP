@@ -250,7 +250,7 @@ int fmiSMCheckRB(FMI_SM_INFO_T *pSM)
 int fmiSMCheckStatus(FMI_SM_INFO_T *pSM)
 {
     u32 status, ret;
-    
+
     ret = 0;
     outpw(REG_SMCMD, 0x70);     // Status Read command for NAND flash
     status = inpw(REG_SMDATA);
@@ -266,7 +266,7 @@ int fmiSMCheckStatus(FMI_SM_INFO_T *pSM)
         printk("WARNING: NAND device status: Write Protected!!\n");
         ret = FMI_SM_STATE_ERROR;
     }
-    
+
     return ret;
 }
 
@@ -531,7 +531,12 @@ int fmiSM_ReadID(FMI_SM_INFO_T *pSM, NDISK_T *NDISK_info)
                 }
 
                 // 2014/10/16, support Winbond W29N01GV NAND flash
-                if ((tempID[0]==0xEF)&&(tempID[1]==0xF1)&&(tempID[2]==0x80)&&(tempID[3]==0x95))
+            // 2017/09/14, support Samsung K9F1G08U0B NAND flash
+            // 2017/09/19, support Winbond W29N01HV NAND flash
+            if (   ((tempID[0]==0xEF)&&(tempID[1]==0xF1)&&(tempID[2]==0x80)&&(tempID[3]==0x95))
+                || ((tempID[0]==0xEC)&&(tempID[1]==0xF1)&&(tempID[2]==0x00)&&(tempID[3]==0x95))
+                || ((tempID[0]==0xEF)&&(tempID[1]==0xF1)&&(tempID[2]==0x00)&&(tempID[3]==0x95))
+               )
                 {
                     NDISK_info->write_page_in_seq = NAND_TYPE_PAGE_IN_SEQ;
                 }
@@ -566,16 +571,51 @@ int fmiSM_ReadID(FMI_SM_INFO_T *pSM, NDISK_T *NDISK_info)
                         NDISK_info->nBlockPerZone = 1024;       /* blocks per zone */
                         NDISK_info->nLBPerZone = 1000;          /* logical blocks per zone */
                 }
-
                 pSM->uSectorPerFlash = 511488;
                 pSM->bIsMulticycle = TRUE;
                 pSM->nPageSize = NAND_PAGE_2KB;
                 pSM->bIsNandECC8 = TRUE;
 
+                // 2018/10/29, support MXIC MX30LF2G18AC NAND flash
+                if ((tempID[0]==0xC2)&&(tempID[1]==0xDA)&&(tempID[2]==0x90)&&(tempID[3]==0x95)&&(tempID[4]==0x06))
+                {
+                    // The first ID of this NAND is 0xC2 BUT it is NOT NAND ROM (read only)
+                    // So, we MUST modify the configuration of it
+                    //      1. change pSM->bIsCheckECC to TRUE to enable ECC feature;
+                    //      2. assign a fake vendor_ID to make NVTFAT can write data to this NAND disk.
+                    //         (GNAND will check vendor_ID and set disk to DISK_TYPE_READ_ONLY if it is 0xC2)
+                    pSM->bIsCheckECC = TRUE;
+                    NDISK_info->vendor_ID = 0xFF;   // fake vendor_ID
+                }
+
                 NDISK_info->nPageSize = 2048;
                 break;
 
         case 0xdc:  // 512M
+                // 2017/9/19, To support both Maker Founder MP4G08JAA
+                //                        and Toshiba TC58NVG2S0HTA00 512MB NAND flash
+                if ((tempID[0]==0x98)&&(tempID[2]==0x90)&&(tempID[3]==0x26)&&(tempID[4]==0x76))
+                {
+                    pSM->uBlockPerFlash  = 2047;        // block index with 0-base. = physical blocks - 1
+                    pSM->uPagePerBlock   = 64;
+                    pSM->nPageSize       = NAND_PAGE_4KB;
+                    pSM->uSectorPerBlock = pSM->nPageSize / 512 * pSM->uPagePerBlock;
+                    pSM->bIsMLCNand      = FALSE;
+                    pSM->bIsMulticycle   = TRUE;
+                    pSM->bIsNandECC8     = TRUE;
+
+                    NDISK_info->NAND_type     = (pSM->bIsMLCNand ? NAND_TYPE_MLC : NAND_TYPE_SLC);
+                    NDISK_info->write_page_in_seq = NAND_TYPE_PAGE_IN_SEQ;
+                    NDISK_info->nZone         = 1;      // number of zones
+                    NDISK_info->nBlockPerZone = pSM->uBlockPerFlash + 1;   // blocks per zone
+                    NDISK_info->nPagePerBlock = pSM->uPagePerBlock;
+                    NDISK_info->nPageSize     = pSM->nPageSize;
+                    NDISK_info->nLBPerZone    = 4000;   // logical blocks per zone
+
+                    pSM->uSectorPerFlash = pSM->uSectorPerBlock * NDISK_info->nLBPerZone / 1000 * 999;
+                    break;
+                }
+
                 if ((tempID[3] & 0x33) == 0x11)
                 {
                         pSM->uBlockPerFlash = 4095;
@@ -604,13 +644,24 @@ int fmiSM_ReadID(FMI_SM_INFO_T *pSM, NDISK_T *NDISK_info)
                         NDISK_info->nBlockPerZone = 2048;       /* blocks per zone */
                         NDISK_info->nLBPerZone = 2000;          /* logical blocks per zone */
                 }
-
                 pSM->uSectorPerFlash = 1022976;
                 pSM->bIsMulticycle = TRUE;
                 pSM->nPageSize = NAND_PAGE_2KB;
                 pSM->bIsNandECC8 = TRUE;
 
                 NDISK_info->nPageSize = 2048;
+
+                // 2018/10/29, support MXIC MX30LF4G18AC NAND flash
+                if ((tempID[0]==0xC2)&&(tempID[1]==0xDC)&&(tempID[2]==0x90)&&(tempID[3]==0x95)&&(tempID[4]==0x56))
+                {
+                    // The first ID of this NAND is 0xC2 BUT it is NOT NAND ROM (read only)
+                    // So, we MUST modify the configuration of it
+                    //      1. change pSM->bIsCheckECC to TRUE to enable ECC feature;
+                    //      2. assign a fake vendor_ID to make NVTFAT can write data to this NAND disk.
+                    //         (GNAND will check vendor_ID and set disk to DISK_TYPE_READ_ONLY if it is 0xC2)
+                    pSM->bIsCheckECC = TRUE;
+                    NDISK_info->vendor_ID = 0xFF;   // fake vendor_ID
+                }
                 break;
 
         case 0xd3:  // 1024M

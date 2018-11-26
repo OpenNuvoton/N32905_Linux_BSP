@@ -89,7 +89,7 @@ config BLK_DEV_SD
 	  (below) as a module either.
 
 config NUVOTON_W55FA93_SM
-	tristate "Nuvoton W55FA93 NAND Flash support"
+	tristate "Nuvoton N9H2x/N329xx/W55FA93 NAND Flash support"
 	depends on BLK_DEV_SD
 
 choice

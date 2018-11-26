@@ -315,11 +315,11 @@ config MMC_SPI
 
 
 config MMC_W55FA93_SD
-	tristate "Nuvoton W55FA93 SD Card support"
+	tristate "Nuvoton N9H2x/N329xx/W55FA93 SD Card support"
 	depends on ARCH_W55FA93
 	help
 	  Say Y here if to include support for the SD driver
-	  for the Nuvoton W55FA93 series SoCs.
+	  for the Nuvoton N9H2x/N329xx/W55FA93 series SoCs.
 	  To compile this driver as a module, choose M here: the
 	  module will be called w55fa93_sd.
 
@@ -339,6 +339,15 @@ config FA93_SD0_WP
     bool "SD0 Write protect (GPA0) support"
         default y
         depends on MMC_W55FA93_SD
+
+choice
+    prompt "SD0 Card Detect Pin select"
+        default SD0_CD_GPA1
+    config SD0_CD_GPA0
+        bool "GPA0"
+    config SD0_CD_GPA1
+        bool "GPA1"
+endchoice
 
 choice
     prompt "SD1 Card Detect Pin select"
@@ -407,7 +416,7 @@ config FA93_SD0_1_BIT_MODE
         default n
         depends on MMC_W55FA93_SD
         help
-            FA93 SD host controller support bus width for both 4 bit mode and 1 bit mode.
+            N9H2x/N329xx/W55FA93 SD host controller support bus width for both 4 bit mode and 1 bit mode.
             The default configuration is 4 bit mode bus width.
             If you want to force SD0 downgrade to 1 bit mode, please enable this option.
 
@@ -416,7 +425,7 @@ config FA93_SD1_1_BIT_MODE
         default n
         depends on FA93_SD_SD0_SD1
         help
-            FA93 SD host controller support bus width for both 4 bit mode and 1 bit mode.
+            N9H2x/N329xx/W55FA93 SD host controller support bus width for both 4 bit mode and 1 bit mode.
             The default configuration is 4 bit mode bus width.
             If you want to force SD1 downgrade to 1 bit mode, please enable this option.
 
@@ -425,7 +434,7 @@ config FA93_SD2_1_BIT_MODE
         default n
         depends on FA93_SD_SD0_SD2
         help
-            FA93 SD host controller support bus width for both 4 bit mode and 1 bit mode.
+            N9H2x/N329xx/W55FA93 SD host controller support bus width for both 4 bit mode and 1 bit mode.
             The default configuration is 4 bit mode bus width.
             If you want to force SD2 downgrade to 1 bit mode, please enable this option.
 

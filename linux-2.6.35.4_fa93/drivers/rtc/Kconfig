@@ -906,11 +906,11 @@ config RTC_DRV_MPC5121
 	  will be called rtc-mpc5121.
 
 config RTC_DRV_W55FA93
-	tristate "Nuvoton W55FA93"
+	tristate "Nuvoton N9H2x/N329xx/W55FA93"
 	depends on RTC_CLASS && ARCH_W55FA93
 	help
 	  If you say Y here you will get access to the real time clock
-	  built into your W55FA93 CPU.
+	  built into your N9H2x/N329xx/W55FA93 CPU.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rtc-W55FA93.	

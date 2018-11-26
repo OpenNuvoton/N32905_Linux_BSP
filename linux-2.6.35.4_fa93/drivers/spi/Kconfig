@@ -338,11 +338,11 @@ config SPI_NUC900
 	  SPI driver for Nuvoton NUC900 series ARM SoCs
 	  
 config SPI_W55FA93
-	tristate "Nuvoton W55FA93 series SPI"
+	tristate "Nuvoton N9H2x/N329xx/W55FA93 series SPI"
 	depends on ARCH_W55FA93 && EXPERIMENTAL
 	select SPI_BITBANG
 	help
-	  SPI driver for Nuvoton W55FA93 series ARM SoCs
+	  SPI driver for Nuvoton N9H2x/N329xx/W55FA93 series ARM SoCs
 
 choice
     prompt "SPI CS0 pin select"

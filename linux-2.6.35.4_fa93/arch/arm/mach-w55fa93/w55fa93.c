@@ -58,6 +58,8 @@ static struct map_desc w55fa93_iodesc[] __initdata = {
 	IODESC_ENT(RTC),
 	IODESC_ENT(I2C),
 	IODESC_ENT(KPI),
+
+	IODESC_ENT(IBR),	
 };
 
 /* Initial clock declarations. */
@@ -416,10 +418,15 @@ void __init w55fa93_init_clocks(void)
 {
 	int xtal;
 
-	if ((__raw_readl(REG_CHIPCFG) & 0xC) == 0x8)
+	if (__raw_readl(0xFFFF3EB4) == 0x50423238) {
+		// G version chip
 		xtal = 12000000;
-	else 
-		xtal = 27000000;	
+	} else {
+		if ((__raw_readl(REG_CHIPCFG) & 0xC) == 0x8)
+			xtal = 12000000;
+		else 
+			xtal = 27000000;
+	}
 	w55fa93_external_clock = xtal;
 	w55fa93_apll_clock = w55fa93_get_pll(0, xtal) / 1000;
 	w55fa93_upll_clock = w55fa93_get_pll(1, xtal) / 1000;

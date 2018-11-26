@@ -292,12 +292,12 @@ config USB_PXA27X
 	select USB_GADGET_SELECTED
 
 config USB_GADGET_W55FA93
-	boolean "W55FA93 USB Device Controller"
+	boolean "N9H2x/N329xx/W55FA93 USB Device Controller"
 	depends on ARCH_W55FA93
 	select USB_GADGET_SELECTED
 	select USB_GADGET_DUALSPEED
 	help
-	  On-chip USB Device Controller of Nuvoton W55FA93.
+	  On-chip USB Device Controller of Nuvoton N9H2x/N329xx/W55FA93.
 
 
 config USB_GADGET_S3C_HSOTG

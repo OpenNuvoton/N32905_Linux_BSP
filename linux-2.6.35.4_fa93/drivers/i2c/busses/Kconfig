@@ -794,18 +794,18 @@ config SCx200_ACB
 	  will be called scx200_acb.
 	  
 config I2C_BUS_W55FA93
-	tristate "W55FA93 I2C Driver"
+	tristate "N9H2x/N329xx/W55FA93 I2C Driver"
 	depends on I2C
 	help
 	  Say Y here to include support for I2C controller in the
-	  Nuvoton W55FA93 based System-on-Chip devices.	
+	  Nuvoton N9H2x/N329xx/W55FA93 based System-on-Chip devices.	
 	  
 config I2C_GPIO_W55FA93
-	tristate "Nuvoton W55FA93 I2C using GPIO pins"
+	tristate "Nuvoton N9H2x/N329xx/W55FA93 I2C using GPIO pins"
 	depends on I2C
 	select I2C_ALGOBIT
 	help
-	  Enable the use of two GPIO pins of a W55FA93 processor as an I2C bus.
+	  Enable the use of two GPIO pins of a N9H2x/N329xx/W55FA93 processor as an I2C bus.
 
 	  If you don't know what to do here, say N.  
 

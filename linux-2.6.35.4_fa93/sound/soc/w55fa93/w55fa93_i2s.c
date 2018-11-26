@@ -22,18 +22,13 @@
 #include <sound/soc.h>
 #include <linux/device.h>
 #include <linux/clk.h>
-
-//#include <mach/mfp.h>
 #include <mach/map.h>
 #include <mach/regs-clock.h>
-
 #include <sound/pcm_params.h>
 #include <mach/hardware.h>
-
 #include <mach/w55fa93_audio.h>
 #include <mach/w55fa93_i2s.h>
 #include <mach/w55fa93_reg.h>
-
 
 //#define I2S_DEBUG
 #define I2S_DEBUG_ENTER_LEAVE
@@ -46,7 +41,6 @@
 #define DBG(fmt, arg...)
 #endif
 
-
 #ifdef I2S_DEBUG_ENTER_LEAVE
 #define ENTER()					DBG("[%-10s] : Enter\n", __FUNCTION__)
 #define LEAVE()					DBG("[%-10s] : Leave\n", __FUNCTION__)
@@ -55,22 +49,18 @@
 #define LEAVE()
 #endif
 
-
 static DEFINE_MUTEX(i2s_mutex);
 struct w55fa93_audio *w55fa93_i2s_data;
 extern unsigned int w55fa93_apll_clock;
 extern unsigned int w55fa93_upll_clock;
 extern int w55fa93_set_apll_clock(unsigned int clock);
 
-
 static int w55fa93_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
                               unsigned int fmt)
 {
-//        struct w55fa93_audio *w55fa93_audio = w55fa93_i2s_data;
         unsigned long val = 0;
 
 		ENTER();
-
 		val = AUDIO_READ(REG_I2S_ACTL_I2SCON);
 		
         switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
@@ -83,11 +73,8 @@ static int w55fa93_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
         default:
                 return -EINVAL;
         }
-
         AUDIO_WRITE(REG_I2S_ACTL_I2SCON, val);
-
 		LEAVE();
-		
         return 0;
 }
 
@@ -95,7 +82,6 @@ static int w55fa93_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
                                  int clk_id, unsigned int freq, int dir)
 {
         unsigned int val = 0;
-//        struct w55fa93_audio *w55fa93_audio = w55fa93_i2s_data;
 		unsigned int PllFreq = w55fa93_upll_clock;        
 		unsigned int u32MCLK, u32ClockDivider;
 
@@ -162,8 +148,7 @@ static int w55fa93_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
 					break;
 					
 			}
-	//		val = 0xff0f;
-	/		val = AUDIO_READ(REG_I2S_ACTL_I2SCON) & 0x08;	
+			val = AUDIO_READ(REG_I2S_ACTL_I2SCON) & 0x08;	
 	#else	
 			switch (freq)	//all 16bit, 256fs
 			{
@@ -206,7 +191,6 @@ static int w55fa93_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
 					break;
 			}
 	#endif	// CONFIG_I2S_MCLK_256WS
-
 			AUDIO_WRITE(REG_I2S_ACTL_I2SCON, val);
 
 	#if !defined(CONFIG_W55FA93_TV_FROM_APLL)
@@ -277,29 +261,6 @@ static int w55fa93_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
 			AUDIO_WRITE(REG_CLKDIV1, AUDIO_READ(REG_CLKDIV1) | (u32ClockDivider<<24));	
 	#endif
 		}	// clk_id == W55FA93_AUDIO_SAMPLECLK
-		
-        if (clk_id == W55FA93_AUDIO_CLKDIV) {
-                //use PLL1 to generate 12.288MHz ,16.934MHz or 11.285Mhz for I2S
-                //input source clock is 15Mhz
-                
-#if 0                
-                if (freq%8000 == 0  && (freq != 32000)) {
-                        //(PLL1=122.88MHz / ACKDIV=10) = 12.288MHz
-                        AUDIO_WRITE(REG_PLLCON1,0x92E7);
-                        AUDIO_WRITE(REG_CLKDIV,(AUDIO_READ(REG_CLKDIV) & ~(0xF<<8)) | (9<<8)); //   /10
-                } else if (freq == 44100) {
-                        //(PLL1=169.34MHz / ACKDIV=15) = 11.289MHz
-                        AUDIO_WRITE(REG_PLLCON1, 0x4E25);
-                        AUDIO_WRITE(REG_CLKDIV,(AUDIO_READ(REG_CLKDIV) & ~(0xF<<8)) | (14<<8)); //   /15
-                } else {
-                        //(PLL1=169.34MHz / ACKDIV=10) = 16.934MHz
-                        AUDIO_WRITE(REG_PLLCON1,0x4E25);
-                        AUDIO_WRITE(REG_CLKDIV,(AUDIO_READ(REG_CLKDIV) & ~(0xF<<8)) | (9<<8));	// /10
-                }
-
-                AUDIO_WRITE(REG_CLKSEL,(AUDIO_READ(REG_CLKSEL)&~(3<<4)) | (1<<4));//ACLK from PLL1
-#endif                
-        }
 
 		LEAVE();
         return 0;
@@ -308,18 +269,15 @@ static int w55fa93_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
 static int w55fa93_i2s_trigger(struct snd_pcm_substream *substream,
                               int cmd, struct snd_soc_dai *dai)
 {
-//        struct w55fa93_audio *w55fa93_audio = w55fa93_i2s_data;
         int ret = 0;
         unsigned long val, con;
 
 		ENTER();
-		
         con = AUDIO_READ(REG_I2S_ACTL_CON);
 
         switch (cmd) {
         case SNDRV_PCM_TRIGGER_START:
         case SNDRV_PCM_TRIGGER_RESUME:
-
                 val = AUDIO_READ(REG_I2S_ACTL_RESET);
                 con |= I2S_EN;
                 if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -367,17 +325,13 @@ static int w55fa93_i2s_probe(struct platform_device *pdev,
                             struct snd_soc_dai *dai)
 {
         struct w55fa93_audio *w55fa93_audio = w55fa93_i2s_data;
-//        unsigned long val;
 
 		ENTER();
-		
         mutex_lock(&i2s_mutex);
 
         /* enable unit clock */
-//        clk_enable(w55fa93_audio->clk);
         clk_enable(w55fa93_audio->eng_clk);
         clk_enable(w55fa93_audio->i2s_clk);
-//        printk("i2s_probe, AHBCLK = 0x%x  !!!\n", AUDIO_READ(REG_AHBCLK));
 
 		// enable I2S pins
 		AUDIO_WRITE(REG_GPBFUN, (AUDIO_READ(REG_GPBFUN) & (~0x3FF0)) | 0x1550);	// GPB[6:2] to be I2S signals
@@ -390,9 +344,8 @@ static int w55fa93_i2s_probe(struct platform_device *pdev,
 		// clear I2S interrupt flags
 		AUDIO_WRITE(REG_I2S_ACTL_RSR, R_FIFO_FULL | R_FIFO_EMPTY | R_DMA_RIA_IRQ);	
 		AUDIO_WRITE(REG_I2S_ACTL_PSR, 0x1F);	
-		AUDIO_WRITE(REG_I2S_ACTL_CON, AUDIO_READ(REG_I2S_ACTL_CON) | I2S_EN | P_DMA_IRQ | R_DMA_IRQ); 		
-//		AUDIO_WRITE(REG_I2S_ACTL_CON, AUDIO_READ(REG_I2S_ACTL_CON) | P_DMA_IRQ | R_DMA_IRQ); 		
-
+//		AUDIO_WRITE(REG_I2S_ACTL_CON, AUDIO_READ(REG_I2S_ACTL_CON) | I2S_EN | P_DMA_IRQ | R_DMA_IRQ); 		
+		AUDIO_WRITE(REG_I2S_ACTL_CON, AUDIO_READ(REG_I2S_ACTL_CON) | P_DMA_IRQ | R_DMA_IRQ); 		
         mutex_unlock(&i2s_mutex);
 
 		LEAVE();
@@ -410,8 +363,6 @@ static void w55fa93_i2s_remove(struct platform_device *pdev,
 //        clk_disable(w55fa93_audio->clk);
         clk_disable(w55fa93_audio->i2s_clk);
         clk_disable(w55fa93_audio->eng_clk);
-	        
-//        printk("i2s_remove, AHBCLK = 0x%x  !!!\n", AUDIO_READ(REG_AHBCLK));	        
 		LEAVE();		
 }
 
@@ -478,12 +429,6 @@ static int __devinit w55fa93_i2s_drvprobe(struct platform_device *pdev)
                 goto out1;
         }
 
-//        w55fa93_audio->clk = clk_get(&pdev->dev, NULL);
-//        if (IS_ERR(w55fa93_audio->clk)) {
-//                ret = PTR_ERR(w55fa93_audio->clk);
-//                goto out2;
-//        }
-
         w55fa93_audio->i2s_clk = clk_get(NULL, "I2S");
         if (IS_ERR(w55fa93_audio->i2s_clk)) {
                 ret = PTR_ERR(w55fa93_audio->i2s_clk);
@@ -514,9 +459,6 @@ static int __devinit w55fa93_i2s_drvprobe(struct platform_device *pdev)
         ret = snd_soc_register_dai(&w55fa93_i2s_dai);
         if (ret)
                 goto out3;
-
-//        mfp_set_groupg(w55fa93_audio->dev); /* enbale i2s multifunction pin*/
-
 		DBG("w55fa93_i2s_drvprobe OK \n");
 		LEAVE();
         return 0;
@@ -545,14 +487,10 @@ static int __devexit w55fa93_i2s_drvremove(struct platform_device *pdev)
 		w55fa93_dma_destroy(w55fa93_i2s_data);
 		
         snd_soc_unregister_dai(&w55fa93_i2s_dai);
-
-//        clk_put(w55fa93_i2s_data->clk);
         iounmap(w55fa93_i2s_data->mmio);
         release_mem_region(w55fa93_i2s_data->res->start,
                            resource_size(w55fa93_i2s_data->res));
-
         w55fa93_i2s_data = NULL;
-
         return 0;
 }
 
