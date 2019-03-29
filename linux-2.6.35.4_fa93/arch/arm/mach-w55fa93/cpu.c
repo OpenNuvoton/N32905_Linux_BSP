@@ -140,7 +140,7 @@ int set_system_clocks(u32 tmp_upll_clock, u32 sys_clock, u32 cpu_clock, u32 apb_
 {
 	void (*cs_func)(u32, u8, u8, u8, u8);
 	unsigned long volatile flags;
-	u32 pllcon, int_mask, hclk_limit;
+	u32 pllcon, int_mask, ahbclk, hclk_limit;
 	u32 tmp_system_clock, tmp_cpu_clock, tmp_hclk1_clock;
 	u8 sys_div, cpu_div, apb_div, dll_dis;
 
@@ -202,6 +202,11 @@ int set_system_clocks(u32 tmp_upll_clock, u32 sys_clock, u32 cpu_clock, u32 apb_
 	__raw_writel(0xFFFFFFFF, REG_AIC_MDCR);
 	//restore_flags(flags);
 
+	// save AHB clock registers
+	ahbclk = __raw_readl(REG_AHBCLK);
+	// open SRAM engine clock
+	__raw_writel(ahbclk | SRAM_CKE, REG_AHBCLK);
+
 	// put enter_clock_setting into SRAM
 	memcpy(sram_vaddr, enter_clock_setting, 512);
 	cs_func = (void(*)(u32, u8, u8, u8, u8)) (sram_vaddr);
@@ -210,6 +215,9 @@ int set_system_clocks(u32 tmp_upll_clock, u32 sys_clock, u32 cpu_clock, u32 apb_
 	local_flush_tlb_all();
 	// change the system clocks
 	cs_func(pllcon, sys_div, cpu_div, apb_div, dll_dis);
+
+	// restore AHB registers
+	__raw_writel(ahbclk, REG_AHBCLK);
 
 	//save_flags(flags);
 	//cli();
