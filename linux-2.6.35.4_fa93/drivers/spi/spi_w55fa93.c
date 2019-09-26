@@ -213,13 +213,63 @@ static void w55fa93_spi_gobusy(struct w55fa93_spi *hw)
 	spin_unlock_irqrestore(&hw->lock, flags);
 }
 
+static unsigned int spi_speed_hz =50000000;
 static int w55fa93_spi_setupxfer(struct spi_device *spi,
 				 struct spi_transfer *t)
 {
+	struct w55fa93_spi *hw = to_hw(spi);
+	unsigned int val;	
+	unsigned int cpol = spi->mode & SPI_CPOL ? 1 : 0;
+	unsigned int cpha = spi->mode & SPI_CPHA ? 1 : 0;
+	unsigned int lsb = spi->mode & SPI_LSB_FIRST ? 1 : 0;
+	unsigned long flags;
+	int divider;
+		
+	spin_lock_irqsave(&hw->lock, flags);
+
+	val = __raw_readl(hw->regs + USI_CNT);
+
+	if (!cpol)
+	{
+		val &= ~SELECTPOL;
+		if (!cpha)	
+			val = (val & ~(TXNEG | RXNEG)) | TXNEG;
+		else
+			val = (val & ~(TXNEG | RXNEG)) | RXNEG;		
+	}
+	else
+	{
+		val |= SELECTPOL;
+		if (!cpha)	
+			val = (val & ~(TXNEG | RXNEG)) | RXNEG;
+		else
+			val = (val & ~(TXNEG | RXNEG)) | TXNEG;
+	}
+
+	if (!lsb)
+		val &= ~LSB;
+	else
+		val |= LSB;
+
+	__raw_writel(val, hw->regs + USI_CNT);	
+
+	if(spi_speed_hz != spi->max_speed_hz)
+	{	
+		spi_speed_hz = spi->max_speed_hz;
+		divider = (w55fa93_apb_clock * 1000) / (2 * spi->max_speed_hz) - 1;
+		if(divider < 0)
+			divider = 0;
+		//printk("spi divider %d %d %d\n", w55fa92_apb_clock * 1000, spi->max_speed_hz, divider);
+				
+		__raw_writel(divider, hw->regs + USI_DIV);
+		
+	}
+	
+	spin_unlock_irqrestore(&hw->lock, flags);
+
 	return 0;
 }
 
-static unsigned int spi_speed_hz =50000000;
 static int w55fa93_spi_setup(struct spi_device *spi)
 {
 	struct w55fa93_spi *hw = to_hw(spi);
