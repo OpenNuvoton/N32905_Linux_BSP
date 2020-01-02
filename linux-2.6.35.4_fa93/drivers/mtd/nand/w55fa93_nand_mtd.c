@@ -56,7 +56,7 @@
 #define Disable_IRQ(n)  writel( 1<<(n), REG_AIC_MDCR)
 
 
-#define W55FA93_DRV_VERSION "20141219"
+#define W55FA93_DRV_VERSION "20191118"
 #define DEF_RESERVER_OOB_SIZE_FOR_MARKER 4
 #define DMAC_TRANSFER
 
@@ -186,7 +186,7 @@ static void dump_chip_info( struct nand_chip * chip )
 
     printk("chip->page_shift (page size): %d Bytes\n",          1<<chip->page_shift );
     printk("chip->phys_erase_shift (block size): %d Bytes\n",   1<<chip->phys_erase_shift );
-    
+
     printk("chip->bbt_erase_shift: %d\n",   1<<chip->bbt_erase_shift );
 
     printk("chip->chip_shift: 0x%08X\n",    chip->chip_shift );
@@ -1093,26 +1093,34 @@ static void w55fa93_nand_command_lp(struct mtd_info *mtd, unsigned int command,
 
     write_cmd_reg(nand, command & 0xff);
 
-    if (column != -1 || page_addr != -1) {
-        if (column != -1) {
-            //if (chip->options & NAND_BUSWIDTH_16)
-            //  column >>= 1;
+    if (command == NAND_CMD_READID) {
+        /* Send READ ID command by only one write_addr_reg() */
+        /* Some NAND flash don't accept multiple write_addr_reg() */
+        write_addr_reg(nand, ENDADDR);
+    } else {
+        if (column != -1 || page_addr != -1) {
 
-            write_addr_reg(nand, (column&0xFF) );
-            if ( page_addr != -1 )
-                write_addr_reg(nand, (column >> 8) );
-            else
-                write_addr_reg(nand, (column >> 8) | ENDADDR);
-        }
+            if (column != -1) {
+                //if (chip->options & NAND_BUSWIDTH_16)
+                //  column >>= 1;
 
-        if (page_addr != -1) {
-            write_addr_reg(nand, (page_addr&0xFF) );
+                write_addr_reg(nand, (column&0xFF) );
+                if ( page_addr != -1 )
+                    write_addr_reg(nand, (column >> 8) );
+                else
+                    write_addr_reg(nand, (column >> 8) | ENDADDR);
+            }
 
-            if ( chip->chipsize > (128 << 20) ) {
-                write_addr_reg(nand, (page_addr >> 8)&0xFF );
-                write_addr_reg(nand, ((page_addr >> 16)&0xFF)|ENDADDR );
-            } else {
-                write_addr_reg(nand, ((page_addr >> 8)&0xFF)|ENDADDR );
+            if (page_addr != -1) {
+
+                write_addr_reg(nand, (page_addr&0xFF) );
+
+                if ( chip->chipsize > (128 << 20) ) {
+                    write_addr_reg(nand, (page_addr >> 8)&0xFF );
+                    write_addr_reg(nand, ((page_addr >> 16)&0xFF)|ENDADDR );
+                } else {
+                    write_addr_reg(nand, ((page_addr >> 8)&0xFF)|ENDADDR );
+                }
             }
         }
     }
