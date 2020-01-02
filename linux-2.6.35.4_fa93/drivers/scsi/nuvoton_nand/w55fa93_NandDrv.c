@@ -3348,7 +3348,7 @@ int nand_chip_erase0(void)
 
 
 //u8 ioctl_buf[8192];     // The data buffer for IOCTL operation.
-u8 ioctl_buf[8192] __attribute__((aligned (4)));
+u8 ioctl_buf[8192] __attribute__((aligned (32)));
 /*-----------------------------------------------------------------------------
  * 2013/11/26, support IOCTL for NAND port 0.
  * Input:
