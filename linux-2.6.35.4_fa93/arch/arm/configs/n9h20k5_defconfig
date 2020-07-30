@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.35.4
-# Fri Nov 23 14:15:42 2018
+# Thu Jul 30 15:05:13 2020
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -726,12 +726,12 @@ CONFIG_I2C_BUS_W55FA93=y
 # CONFIG_PPS is not set
 CONFIG_ARCH_REQUIRE_GPIOLIB=y
 CONFIG_GPIOLIB=y
-# CONFIG_GPIO_SYSFS is not set
+CONFIG_GPIO_SYSFS=y
 
 #
 # Memory mapped GPIO expanders:
 #
-# CONFIG_GPIO_W55FA93 is not set
+CONFIG_GPIO_W55FA93=y
 # CONFIG_GPIO_IT8761E is not set
 
 #
