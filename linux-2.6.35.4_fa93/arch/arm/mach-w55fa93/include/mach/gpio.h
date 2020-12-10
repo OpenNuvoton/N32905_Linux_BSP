@@ -21,12 +21,12 @@
 
 static inline int gpio_to_irq(unsigned gpio)
 {
-	return gpio;
+	return IRQ_GPIO_START + gpio;
 }
 
 static inline int irq_to_gpio(unsigned irq)
 {
-	return irq;
+	return irq - IRQ_GPIO_START;
 }
 
 #endif

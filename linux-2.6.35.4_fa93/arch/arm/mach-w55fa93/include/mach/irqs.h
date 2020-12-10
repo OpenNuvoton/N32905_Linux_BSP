@@ -54,6 +54,13 @@
 #define IRQ_KPI        W55FA93_IRQ(28)
 #define IRQ_I2C        W55FA93_IRQ(30)
 #define IRQ_PWR        W55FA93_IRQ(31)
+
+#define IRQ_GPIO_START 	W55FA93_IRQ(W55FA93_IRQ(0x100))
+#define IRQ_GPIO_END 	W55FA93_IRQ(W55FA93_IRQ(0x100+0xA0))
+#ifndef CONFIG_GPIO_W55FA93
 #define NR_IRQS        32
+#else
+#define NR_IRQS        (IRQ_GPIO_END + 1)
+#endif
 
 #endif /* __ASM_ARCH_IRQ_H */
