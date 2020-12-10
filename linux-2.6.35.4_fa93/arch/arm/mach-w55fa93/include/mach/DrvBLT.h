@@ -19,9 +19,8 @@ extern "C"
 #define E_SUCCESS	0
 #define E_FAIL		1
 
-//#define outp32(addr,value)	outl(value, addr)
-#define outp32(addr,value)	outl((unsigned long)value, (unsigned int)addr)
-#define inp32(addr)		inl((unsigned int)addr)
+#define outp32(addr,value)  outl((unsigned long)value, (unsigned int)addr)
+#define inp32(addr)         inl((unsigned int)addr)
 
 /*
 typedef enum {
@@ -195,7 +194,8 @@ typedef struct {
 #define BLT_SET_RGB565_COLORKEY 	_IOW('v', 143, unsigned int)
 #define BLT_ENABLE_RGB565_COLORCTL 	_IO ('v', 144)
 #define BLT_DISABLE_RGB565_COLORCTL 	_IO ('v', 145)
-
+#define BLT_SRCFMT_PREMULALPHA          _IO('v', 146)
+#define BLT_SRCFMT_NONPREMULALPHA       _IO('v', 147)
 
 // APIs declaration
 

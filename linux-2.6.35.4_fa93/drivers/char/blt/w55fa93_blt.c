@@ -556,7 +556,13 @@ out_unmap:
 		break;
 	case BLT_DISABLE_RGB565_COLORCTL:
 		DrvBLT_SetRGB565TransparentCtl(0);
-		break;				
+		break;
+    case BLT_SRCFMT_PREMULALPHA:
+        DrvBLT_SetRevealAlpha(eDRVBLT_EFFECTIVE);
+        break;
+    case BLT_SRCFMT_NONPREMULALPHA:
+        DrvBLT_SetRevealAlpha(eDRVBLT_NO_EFFECTIVE);
+        break;
 	default:
 		return -ENOIOCTLCMD;
 	}
