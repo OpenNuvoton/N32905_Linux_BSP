@@ -56,7 +56,7 @@ extern void sysmgr_report(unsigned status);
 #endif
 
 // define DATE CODE and show it when running to make maintaining easy.
-#define DATE_CODE   "20191218"
+#define DATE_CODE   "20201214"
 
 #if 1	// for nand card
 #define NAND_CD_IRQ_NUM W55FA93_IRQ(3)  // nIRQ1

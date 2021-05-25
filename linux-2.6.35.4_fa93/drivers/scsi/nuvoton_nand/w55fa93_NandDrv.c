@@ -407,10 +407,12 @@ int fmiSM_ReadID(FMI_SM_INFO_T *pSM, NDISK_T *NDISK_info)
         NDISK_info->vendor_ID = tempID[0];
         NDISK_info->device_ID = tempID[1];
 
-        if (tempID[0] == 0xC2)
-                pSM->bIsCheckECC = FALSE;
+        if (((tempID[0] == 0xC2) && (tempID[1] == 0x79)) ||
+            ((tempID[0] == 0xC2) && (tempID[1] == 0x76)))
+            // Don't support ECC for NAND Interface ROM
+            pSM->bIsCheckECC = FALSE;
         else
-                pSM->bIsCheckECC = TRUE;
+            pSM->bIsCheckECC = TRUE;
 
         pSM->bIsNandECC4 = FALSE;
         pSM->bIsNandECC8 = FALSE;
@@ -592,6 +594,30 @@ int fmiSM_ReadID(FMI_SM_INFO_T *pSM, NDISK_T *NDISK_info)
                 break;
 
         case 0xdc:  // 512M
+            // 2020/10/08, support Micron MT29F4G08ABAEA 512MB NAND flash
+            if ((tempID[0]==0x2C)&&(tempID[2]==0x90)&&(tempID[3]==0xA6)&&(tempID[4]==0x54))
+            {
+                pSM->uBlockPerFlash  = 2047;        // block index with 0-base. = physical blocks - 1
+                pSM->uPagePerBlock   = 64;
+                pSM->nPageSize       = NAND_PAGE_4KB;
+                pSM->uSectorPerBlock = pSM->nPageSize / 512 * pSM->uPagePerBlock;
+                pSM->bIsMLCNand      = FALSE;
+                pSM->bIsMulticycle   = TRUE;
+                //pSM->bIsNandECC24    = TRUE;    // FA93 don't support ECC 24
+                pSM->bIsNandECC12    = TRUE;    // FA93 use ECC 12 with OOB 224 bytes
+
+                NDISK_info->NAND_type     = (pSM->bIsMLCNand ? NAND_TYPE_MLC : NAND_TYPE_SLC);
+                NDISK_info->write_page_in_seq = NAND_TYPE_PAGE_IN_SEQ;
+                NDISK_info->nZone         = 1;      // number of zones
+                NDISK_info->nBlockPerZone = pSM->uBlockPerFlash + 1;   // blocks per zone
+                NDISK_info->nPagePerBlock = pSM->uPagePerBlock;
+                NDISK_info->nPageSize     = pSM->nPageSize;
+                NDISK_info->nLBPerZone    = 2000;   // logical blocks per zone
+
+                pSM->uSectorPerFlash = pSM->uSectorPerBlock * NDISK_info->nLBPerZone / 1000 * 999;
+                break;
+            }
+
                 // 2017/9/19, To support both Maker Founder MP4G08JAA
                 //                        and Toshiba TC58NVG2S0HTA00 512MB NAND flash
                 if ((tempID[0]==0x98)&&(tempID[2]==0x90)&&(tempID[3]==0x26)&&(tempID[4]==0x76))
@@ -610,7 +636,7 @@ int fmiSM_ReadID(FMI_SM_INFO_T *pSM, NDISK_T *NDISK_info)
                     NDISK_info->nBlockPerZone = pSM->uBlockPerFlash + 1;   // blocks per zone
                     NDISK_info->nPagePerBlock = pSM->uPagePerBlock;
                     NDISK_info->nPageSize     = pSM->nPageSize;
-                    NDISK_info->nLBPerZone    = 4000;   // logical blocks per zone
+                    NDISK_info->nLBPerZone    = 2000;   // logical blocks per zone
 
                     pSM->uSectorPerFlash = pSM->uSectorPerBlock * NDISK_info->nLBPerZone / 1000 * 999;
                     break;
