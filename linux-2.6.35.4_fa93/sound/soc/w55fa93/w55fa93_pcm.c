@@ -96,6 +96,19 @@ static int s_PlayChannels = 0;
 	extern int DrvSPU_SetChannelVolume(u32 u32Channel, u8 u8Volume);
 #endif                                      
 
+/*------------------------------------------*/
+/* this can solve the problem of repeating 
+   playback of last period data             */
+/*------------------------------------------*/
+#define OPT_SOLVE_LAST_PERIOD_REPEATED
+#ifdef OPT_SOLVE_LAST_PERIOD_REPEATED
+#define REPORT_TIMEOUT      1
+static int  g_middle_int=0, g_end_int = 0;
+static int  g_get_dma_addr_num = 0;
+static int  g_add_timer = 0, g_del_timer = 0;
+static struct timer_list report_addr_timer;
+#endif
+/*------------------------------------------*/
 static const struct snd_pcm_hardware w55fa93_pcm_hardware = {
         .info			= SNDRV_PCM_INFO_INTERLEAVED |
         SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -223,6 +236,13 @@ static irqreturn_t w55fa93_dma_interrupt(int irq, void *dev_id)
 		} 
 		if (val & P_DMA_IRQ) {
         	stream = SNDRV_PCM_STREAM_PLAYBACK;        	
+        #ifdef OPT_SOLVE_LAST_PERIOD_REPEATED
+            if ((AUDIO_READ(REG_I2S_ACTL_PSR)&P_DMA_RIA_SN)==0){
+                g_end_int = 1;
+            }else{
+                g_middle_int = 1;
+            }
+        #endif
         	
             AUDIO_WRITE(REG_I2S_ACTL_PSR, AUDIO_READ(REG_I2S_ACTL_PSR));
             AUDIO_WRITE(REG_I2S_ACTL_CON, val | P_DMA_IRQ);
@@ -268,6 +288,9 @@ static irqreturn_t w55fa93_dma_interrupt(int irq, void *dev_id)
 				{			
 					AUDIO_WRITE(REG_SPU_CH_EVENT, (AUDIO_READ(REG_SPU_CH_EVENT) & ~0x3F00) | END_FG);						
 					DBG("END !! \n");	        					
+                #ifdef OPT_SOLVE_LAST_PERIOD_REPEATED
+                    g_end_int = 1;
+                #endif
 				}				
 	
 				/* clear int */	
@@ -275,6 +298,9 @@ static irqreturn_t w55fa93_dma_interrupt(int irq, void *dev_id)
 				{
 					AUDIO_WRITE(REG_SPU_CH_EVENT, (AUDIO_READ(REG_SPU_CH_EVENT) & ~0x3F00) | TH_FG);														
 					DBG("MIDDLE !! \n");	        										
+                #ifdef OPT_SOLVE_LAST_PERIOD_REPEATED
+                    g_middle_int = 1;
+                #endif
 				}											
 
 				AUDIO_WRITE(REG_SPU_CH_CTRL, AUDIO_READ(REG_SPU_CH_CTRL) & ~DRVSPU_UPDATE_ALL_PARTIALS);		
@@ -416,6 +442,54 @@ static int w55fa93_dma_prepare(struct snd_pcm_substream *substream)
         return 0;
 }
 
+#ifdef OPT_SOLVE_LAST_PERIOD_REPEATED
+static void report_addr(unsigned long data)
+{
+    struct snd_pcm_substream *substream;
+    struct snd_pcm_runtime *runtime;
+    struct w55fa93_audio *w55fa93_audio;
+    int stream;
+	
+    stream = SNDRV_PCM_STREAM_PLAYBACK; 
+    substream = (struct snd_pcm_substream *) data;
+    runtime = (struct snd_pcm_runtime *) substream->runtime;
+    w55fa93_audio = runtime->private_data;
+	spin_lock(&w55fa93_audio->lock);
+
+#ifdef CONFIG_SND_SOC_w55fa93_SPU 			
+    AUDIO_WRITE(REG_AIC_MDCR,(1<<IRQ_SPU));
+    snd_pcm_period_elapsed(w55fa93_audio->substream[stream]);        
+    AUDIO_WRITE(REG_AIC_MECR,(1<<IRQ_SPU));						
+#else
+    AUDIO_WRITE(REG_AIC_MDCR,(1<<IRQ_I2S));
+    snd_pcm_period_elapsed(w55fa93_audio->substream[stream]);        
+    AUDIO_WRITE(REG_AIC_MECR,(1<<IRQ_I2S));						
+#endif
+
+    if (!g_del_timer)
+    {
+        mod_timer(&report_addr_timer, jiffies + REPORT_TIMEOUT);
+    } else
+    {
+        g_del_timer = 0;
+    }
+    spin_unlock(&w55fa93_audio->lock);
+}
+
+static void del_report_addr_timer(void)
+{
+    del_timer(&report_addr_timer);
+}
+
+static void add_report_addr_timer(struct snd_pcm_substream *substream)
+{
+	init_timer(&report_addr_timer);
+    report_addr_timer.data = (unsigned long) substream;
+    report_addr_timer.expires = jiffies +  REPORT_TIMEOUT;
+    report_addr_timer.function = report_addr;
+    add_timer(&report_addr_timer);
+}
+#endif                            
 int w55fa93_dma_getposition(struct snd_pcm_substream *substream,
                            dma_addr_t *src, dma_addr_t *dst)
 {
@@ -423,6 +497,36 @@ int w55fa93_dma_getposition(struct snd_pcm_substream *substream,
 //        struct w55fa93_audio *w55fa93_audio = runtime->private_data;
 
 	ENTER();
+#ifdef OPT_SOLVE_LAST_PERIOD_REPEATED
+        if (g_middle_int||g_end_int)
+        {
+            if (g_get_dma_addr_num>=2)
+            {
+                g_get_dma_addr_num = 0;
+                g_middle_int = 0;
+                g_end_int = 0;
+                if (g_add_timer)
+                {
+                    g_add_timer = 0;
+                    g_del_timer = 1;
+                }
+            } else {
+                g_get_dma_addr_num = 0;
+                if (g_middle_int)
+                    g_middle_int = 0;
+                else
+                    g_end_int = 0;
+
+                if (!g_add_timer){
+                    g_add_timer = 1;
+                    g_del_timer = 0;
+                    add_report_addr_timer(substream);
+                }
+            }
+        } else {
+            g_get_dma_addr_num++;
+        }
+#endif
 	
 #ifdef CONFIG_SND_SOC_W55FA93_I2S
         if (src != NULL)
@@ -461,6 +565,31 @@ int w55fa93_dma_getposition(struct snd_pcm_substream *substream,
 	LEAVE();
         return 0;
 }
+
+#ifdef OPT_SOLVE_LAST_PERIOD_REPEATED
+static int w55fa93_dma_trigger(struct snd_pcm_substream *substream,
+                              int cmd)
+{
+        struct w55fa93_audio *w55fa93_audio = substream->runtime->private_data;
+        int ret = 0;	
+		spin_lock(&w55fa93_audio->lock);
+
+		ENTER();
+		
+        switch (cmd) {
+        case SNDRV_PCM_TRIGGER_STOP:
+        case SNDRV_PCM_TRIGGER_SUSPEND:
+            del_report_addr_timer();
+            g_del_timer = 1;
+            break;
+        }
+
+		LEAVE();       
+        spin_unlock(&w55fa93_audio->lock);
+        
+        return ret;
+}
+#endif
 
 static snd_pcm_uframes_t w55fa93_dma_pointer(struct snd_pcm_substream *substream)
 {
@@ -557,6 +686,9 @@ static struct snd_pcm_ops w55fa93_dma_ops = {
         .hw_params	= w55fa93_dma_hw_params,
         .hw_free	= w55fa93_dma_hw_free,
         .prepare	= w55fa93_dma_prepare,
+#ifdef OPT_SOLVE_LAST_PERIOD_REPEATED
+        .trigger    = w55fa93_dma_trigger,
+#endif
         .pointer	= w55fa93_dma_pointer,
         .mmap		= w55fa93_dma_mmap,
 };
