@@ -1,7 +1,7 @@
 # N32905_Linux_BSP
 Linux BSP Source Code for N9H20/N32905 Microprocessor 
 
-- **Extract rootfs tarball before build the krenel image** 
+- **Extract rootfs tarball before build the kernel image** 
 `$ tar zxvf rootfs-2.6.35.tar.gz`
 
 - **Load N9H20 default kernel configuration**
